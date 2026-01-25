@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Snowman’s Apiary</title>
+
   <style>
     body{
       margin:0;
@@ -16,6 +17,7 @@
       padding: 24px;
       text-align:center;
     }
+
     .card{
       max-width: 720px;
       width: 100%;
@@ -23,16 +25,34 @@
       border: 1px solid rgba(255,255,255,0.14);
       border-radius: 18px;
       padding: 26px;
+      backdrop-filter: blur(10px);
+      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
     }
+
     img{
-      width: min(320px, 80%);
+      width: min(520px, 95%);
       height:auto;
       display:block;
       margin: 0 auto 14px;
+      border-radius: 12px;
     }
+
+    h1{
+      margin: 6px 0 8px;
+      font-size: 42px;
+      line-height: 1.1;
+    }
+
+    p{
+      margin: 0 0 18px;
+      opacity: 0.85;
+      font-size: 18px;
+      line-height: 1.4;
+    }
+
     a.btn{
       display:inline-block;
-      margin-top: 14px;
+      margin-top: 8px;
       padding: 12px 16px;
       border-radius: 12px;
       border: 1px solid rgba(255,255,255,0.14);
@@ -41,14 +61,95 @@
       text-decoration:none;
       font-weight: 700;
     }
+
+    a.btn:hover{
+      background: rgba(255,255,255,0.16);
+    }
+
+    /* Snow overlay on top of EVERYTHING */
+    canvas#snow{
+      position: fixed;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 9999;
+      pointer-events: none;
+    }
   </style>
 </head>
+
 <body>
+  <canvas id="snow" aria-hidden="true"></canvas>
+
   <div class="card">
     <img src="logo.png" alt="Snowman’s Apiary logo" />
     <h1>Snowman’s Apiary</h1>
     <p>Local honey & apiary goods. Email me for orders or questions.</p>
-    <a class="btn" href="mailto:snowmansapiary@yahoo.com">Email Snowman’s Apiary</a>
+
+    <a class="btn" href="mailto:snowmansapiary@yahoo.com?subject=Snowman%27s%20Apiary%20Inquiry">
+      Email Snowman’s Apiary
+    </a>
   </div>
+
+  <script>
+    const canvas = document.getElementById("snow");
+    const ctx = canvas.getContext("2d");
+
+    function resize() {
+      canvas.width = window.innerWidth * devicePixelRatio;
+      canvas.height = window.innerHeight * devicePixelRatio;
+      canvas.style.width = window.innerWidth + "px";
+      canvas.style.height = window.innerHeight + "px";
+      ctx.setTransform(devicePixelRatio, 0, 0, devicePixelRatio, 0, 0);
+    }
+
+    window.addEventListener("resize", resize);
+    resize();
+
+    const flakes = [];
+    const maxFlakes = 140;
+    const rand = (a, b) => Math.random() * (b - a) + a;
+
+    function init() {
+      flakes.length = 0;
+      for (let i = 0; i < maxFlakes; i++) {
+        flakes.push({
+          x: rand(0, window.innerWidth),
+          y: rand(0, window.innerHeight),
+          r: rand(1.2, 4.2),
+          s: rand(0.8, 2.0),
+          d: rand(-0.7, 0.7),
+          a: rand(0.35, 0.9),
+        });
+      }
+    }
+    init();
+
+    function step() {
+      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+
+      for (const f of flakes) {
+        f.y += f.s;
+        f.x += f.d;
+
+        if (f.y > window.innerHeight + 10) {
+          f.y = -10;
+          f.x = rand(0, window.innerWidth);
+        }
+        if (f.x > window.innerWidth + 10) f.x = -10;
+        if (f.x < -10) f.x = window.innerWidth + 10;
+
+        ctx.beginPath();
+        ctx.globalAlpha = f.a;
+        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
+        ctx.fillStyle = "#ffffff";
+        ctx.fill();
+      }
+
+      ctx.globalAlpha = 1;
+      requestAnimationFrame(step);
+    }
+    step();
+  </script>
 </body>
 </html>

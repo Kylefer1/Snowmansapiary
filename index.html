@@ -2,664 +2,718 @@
 <html lang="en">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Snowman’s Apiary</title>
-
   <style>
     :root{
-      --bg:#0b1220;
-      --card:rgba(255,255,255,0.06);
-      --cardBorder:rgba(255,255,255,0.14);
-      --text:rgba(255,255,255,0.92);
-      --muted:rgba(255,255,255,0.82);
+      --bg1:#0a1320;
+      --bg2:#0e1f35;
+      --card:rgba(255,255,255,.06);
+      --card2:rgba(255,255,255,.10);
+      --stroke:rgba(255,255,255,.12);
+      --text:#f3f6ff;
+      --muted:rgba(243,246,255,.82);
+      --muter:rgba(243,246,255,.66);
+      --accent:rgba(255,255,255,.92);
+      --shadow: 0 18px 55px rgba(0,0,0,.45);
+      --radius:22px;
+      --hudBlur: blur(10px);
     }
-
+    *{box-sizing:border-box}
+    html,body{height:100%}
     body{
       margin:0;
       min-height:100vh;
-      display:grid;
-      place-items:center;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-      background: var(--bg);
-      color: var(--text);
-      padding: 24px;
-      text-align:center;
+      background: radial-gradient(1200px 900px at 20% 15%, #1a2f53 0%, var(--bg1) 40%, #050a12 100%);
+      color:var(--text);
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:24px 12px;
       overflow:hidden;
     }
 
-    /* Screen shake (only during blizzard) */
-    body.shake{
-      animation: blizzardShake 0.08s infinite;
+    /* Screen shake (activated during blizzard) */
+    .shake{
+      animation: shake .18s infinite linear;
     }
-    @keyframes blizzardShake{
-      0%   { transform: translate(0px, 0px); }
-      20%  { transform: translate(-1px, 1px); }
-      40%  { transform: translate(1px, -1px); }
-      60%  { transform: translate(-2px, 0px); }
-      80%  { transform: translate(2px, 1px); }
-      100% { transform: translate(0px, 0px); }
+    @keyframes shake{
+      0%{transform:translate(0,0)}
+      20%{transform:translate(1px,-1px)}
+      40%{transform:translate(-1px,1px)}
+      60%{transform:translate(1px,1px)}
+      80%{transform:translate(-1px,-1px)}
+      100%{transform:translate(0,0)}
     }
 
+    /* Card */
     .card{
-      max-width: 720px;
-      width: 100%;
-      background: var(--card);
-      border: 1px solid var(--cardBorder);
-      border-radius: 18px;
-      padding: 26px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+      width:min(720px, 92vw);
+      background: linear-gradient(180deg, rgba(255,255,255,.08), rgba(255,255,255,.04));
+      border:1px solid var(--stroke);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      padding: 18px 18px 20px;
+      text-align:center;
+      position:relative;
+      z-index:5;
+      backdrop-filter: var(--hudBlur);
     }
-
-    img{
-      width: min(520px, 95%);
-      height:auto;
+    img.logo{
+      width:min(520px, 86vw);
+      max-width:100%;
+      border-radius: 16px;
       display:block;
       margin: 0 auto 14px;
-      border-radius: 12px;
-      background: rgba(255,255,255,0.06);
+      background: rgba(0,0,0,.25);
+      border:1px solid rgba(255,255,255,.10);
     }
-
     h1{
       margin: 6px 0 8px;
-      font-size: 42px;
-      line-height: 1.1;
+      font-size: clamp(30px, 5.4vw, 52px);
+      line-height:1.05;
+      letter-spacing: .2px;
     }
-
-    p{
-      margin: 0 0 14px;
-      opacity: 0.88;
-      font-size: 18px;
-      line-height: 1.4;
+    .sub{
+      margin: 0 0 10px;
+      font-size: clamp(16px, 2.8vw, 22px);
+      color: var(--muted);
     }
-
     .status{
-      margin: 0 0 18px;
-      opacity: 0.85;
-      font-size: 16px;
+      margin: 0 0 14px;
+      font-size: clamp(14px, 2.4vw, 18px);
+      color: var(--muter);
     }
-
     a.btn{
       display:inline-block;
-      margin-top: 8px;
-      padding: 12px 16px;
-      border-radius: 12px;
-      border: 1px solid rgba(255,255,255,0.14);
-      background: rgba(255,255,255,0.10);
-      color: white;
+      margin-top: 6px;
+      padding: 12px 18px;
+      border-radius: 14px;
+      border:1px solid rgba(255,255,255,.14);
+      background: rgba(255,255,255,.09);
+      color: var(--accent);
       text-decoration:none;
-      font-weight: 700;
+      font-weight: 750;
+      letter-spacing:.2px;
+      transition: transform .08s ease, background .15s ease;
+      user-select:none;
+      -webkit-tap-highlight-color: transparent;
     }
-    a.btn:hover{ background: rgba(255,255,255,0.16); }
+    a.btn:active{transform: translateY(1px) scale(.99)}
+    a.btn:hover{background: rgba(255,255,255,.14)}
 
-    /* Canvas overlay */
+    /* Snow canvas: global overlay */
     canvas#snow{
-      position: fixed;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 9999;
-      pointer-events: none;
+      position:fixed;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:1;
+      pointer-events:none;
+    }
+
+    /* Pile canvas: bottom snow accumulation */
+    canvas#pile{
+      position:fixed;
+      left:0; right:0; bottom:0;
+      height: 28vh;
+      width:100%;
+      z-index:3;
+      pointer-events:auto; /* clickable */
+      touch-action: manipulation;
     }
 
     /* HUD */
     .hud{
-      position: fixed;
-      top: 10px;
-      left: 10px;
-      z-index: 10001;
-      pointer-events: none;
-      text-align: left;
-
-      background: rgba(0,0,0,0.22);
-      border: 1px solid rgba(255,255,255,0.12);
-      border-radius: 12px;
+      position:fixed;
+      top:10px;
+      left:10px;
+      z-index:10;
+      background: rgba(0,0,0,.22);
+      border:1px solid rgba(255,255,255,.12);
+      border-radius: 14px;
       padding: 8px 10px;
-      backdrop-filter: blur(10px);
-      box-shadow: 0 10px 22px rgba(0,0,0,0.32);
-
-      min-width: 150px;
-      max-width: calc(100vw - 20px);
-      font-size: 12px;
-      line-height: 1.2;
+      min-width: 170px;
+      max-width: min(240px, calc(100vw - 20px));
+      backdrop-filter: var(--hudBlur);
+      box-shadow: 0 10px 26px rgba(0,0,0,.32);
+      font-size: 13px;
+      line-height:1.25;
+      user-select:none;
+      pointer-events:none;
     }
-
-    .hud .row{ display:flex; justify-content:space-between; gap:10px; }
-    .hud .label{ opacity:0.72; font-weight:700; }
-    .hud .value{ font-weight:900; }
+    .hud .row{
+      display:flex;
+      justify-content:space-between;
+      gap:10px;
+      white-space:nowrap;
+    }
+    .hud .label{opacity:.78}
+    .hud .val{font-weight:800; opacity:.95}
     .hud .hint{
-      margin-top: 6px;
-      opacity: 0.75;
-      font-weight: 700;
+      margin-top:6px;
+      opacity:.80;
       font-size: 12px;
     }
 
-    .hud .barWrap{
-      margin-top: 6px;
-      height: 7px;
-      background: rgba(255,255,255,0.12);
+    .barWrap{
+      margin-top:8px;
+      height:10px;
       border-radius: 999px;
+      background: rgba(255,255,255,.10);
+      border:1px solid rgba(255,255,255,.12);
       overflow:hidden;
-      border: 1px solid rgba(255,255,255,0.10);
     }
-    .hud .bar{
+    .barFill{
       height:100%;
       width:0%;
-      background: rgba(255,255,255,0.85);
-      border-radius: 999px;
-      transition: width 70ms linear;
+      background: rgba(255,255,255,.78);
+      transform-origin:left;
     }
 
-    /* Game over overlay */
+    /* Little floating text puffs */
+    .poof{
+      position:fixed;
+      z-index:12;
+      pointer-events:none;
+      font-weight:900;
+      color: rgba(255,255,255,.92);
+      text-shadow: 0 8px 16px rgba(0,0,0,.45);
+      transform: translate(-50%,-50%);
+      will-change: transform, opacity;
+      animation: poof 650ms ease-out forwards;
+    }
+    @keyframes poof{
+      0%{opacity:0; transform: translate(-50%,-50%) scale(.8)}
+      10%{opacity:1}
+      100%{opacity:0; transform: translate(-50%,-90%) scale(1.18)}
+    }
+
+    /* “Buried” overlay */
     .overlay{
-      position: fixed;
-      inset: 0;
-      z-index: 10002;
+      position:fixed;
+      inset:0;
+      z-index:20;
       display:none;
-      place-items: center;
-      text-align:center;
-      background: rgba(0,0,0,0.55);
-      backdrop-filter: blur(6px);
-      padding: 24px;
+      align-items:center;
+      justify-content:center;
+      background: rgba(0,0,0,.55);
+      backdrop-filter: blur(7px);
+      padding: 18px;
     }
     .overlay .panel{
-      width: min(520px, 92vw);
-      background: rgba(255,255,255,0.08);
-      border: 1px solid rgba(255,255,255,0.14);
+      width:min(520px, 92vw);
       border-radius: 18px;
-      padding: 20px 18px;
-      box-shadow: 0 18px 50px rgba(0,0,0,0.45);
+      border:1px solid rgba(255,255,255,.16);
+      background: rgba(10,18,30,.72);
+      box-shadow: 0 25px 80px rgba(0,0,0,.6);
+      padding: 18px 16px;
+      text-align:center;
     }
-    .overlay h2{ margin: 0 0 8px; font-size: 34px; }
-    .overlay p{ margin: 0 0 12px; opacity: 0.9; }
-    .overlay .hint{ opacity:0.75; font-weight:700; }
-
-    @media (max-width: 420px){
-      h1{ font-size: 38px; }
-      .hud{ min-width: 140px; }
+    .overlay h2{
+      margin: 4px 0 6px;
+      font-size: 26px;
+      letter-spacing:.3px;
     }
+    .overlay p{
+      margin: 0 0 12px;
+      opacity:.86;
+    }
+    .overlay .mini{
+      font-size: 13px;
+      opacity:.75;
+      margin-top: 10px;
+    }
+    .overlay button{
+      border:1px solid rgba(255,255,255,.18);
+      background: rgba(255,255,255,.10);
+      color: rgba(255,255,255,.92);
+      padding: 10px 14px;
+      border-radius: 14px;
+      font-weight:800;
+      letter-spacing:.2px;
+      cursor:pointer;
+    }
+    .overlay button:active{transform: translateY(1px)}
   </style>
 </head>
-
 <body>
   <canvas id="snow" aria-hidden="true"></canvas>
+  <canvas id="pile" aria-label="Tap the snow pile to shovel"></canvas>
 
-  <div class="hud">
-    <div class="row"><div class="label">Score</div><div class="value" id="score">0</div></div>
-    <div class="row"><div class="label">High</div><div class="value" id="high">0</div></div>
-    <div class="row"><div class="label">Combo</div><div class="value" id="combo">x0</div></div>
-    <div class="row"><div class="label">Buried at</div><div class="value" id="buriedAt">—</div></div>
-    <div class="row"><div class="label">Blizzard</div><div class="value" id="blizzard">idle</div></div>
-
+  <div class="hud" id="hud">
+    <div class="row"><span class="label">Score</span><span class="val" id="score">0</span></div>
+    <div class="row"><span class="label">High</span><span class="val" id="high">0</span></div>
+    <div class="row"><span class="label">Combo</span><span class="val" id="combo">x0</span></div>
+    <div class="row"><span class="label">Buried at</span><span class="val" id="buried">—</span></div>
+    <div class="row"><span class="label">Blizzard</span><span class="val" id="blz">idle</span></div>
+    <div class="barWrap"><div class="barFill" id="barFill"></div></div>
     <div class="hint" id="hint">Tap the pile to shovel ❄️</div>
-
-    <div class="barWrap"><div class="bar" id="bar"></div></div>
   </div>
 
-  <div class="card">
-    <img src="logo.png" alt="Snowman’s Apiary logo" />
+  <div class="card" id="card">
+    <img class="logo" src="logo.png" alt="Snowman’s Apiary logo" />
     <h1>Snowman’s Apiary</h1>
-    <p>Local honey &amp; apiary goods.</p>
-    <div class="status">Currently out of stock — expecting more honey by summer.</div>
-
-    <a class="btn" href="mailto:snowmansapiary@yahoo.com?subject=Snowman%27s%20Apiary%20Inquiry">
-      Email Snowman’s Apiary
-    </a>
+    <p class="sub">Local honey &amp; apiary goods.</p>
+    <p class="status">Currently out of stock — expecting more honey by summer.</p>
+    <a class="btn" href="mailto:snowmansapiary@yahoo.com?subject=Snowman%27s%20Apiary%20Inquiry">Email Snowman’s Apiary</a>
   </div>
 
   <div class="overlay" id="overlay">
     <div class="panel">
-      <h2>❄️ You got buried! ❄️</h2>
-      <p>Final Score: <strong id="finalScore">0</strong> — High Score: <strong id="finalHigh">0</strong></p>
-      <p class="hint">Tap anywhere to restart</p>
+      <h2>🥶 You got buried.</h2>
+      <p id="deathLine">The snow won this round.</p>
+      <button id="restart">Try again</button>
+      <div class="mini">Hidden strategy: staying calm is safer than chasing the blizzard.</div>
     </div>
   </div>
 
-  <script>
-    // ===== Helpers =====
-    const rand = (a, b) => Math.random() * (b - a) + a;
+<script>
+(() => {
+  // =========================
+  // Utility
+  // =========================
+  const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const rand = (a, b) => a + Math.random() * (b - a);
 
-    // ===== DOM =====
-    const canvas = document.getElementById("snow");
-    const ctx = canvas.getContext("2d");
+  // =========================
+  // Elements
+  // =========================
+  const snowCanvas = document.getElementById('snow');
+  const pileCanvas = document.getElementById('pile');
+  const scoreEl = document.getElementById('score');
+  const highEl = document.getElementById('high');
+  const comboEl = document.getElementById('combo');
+  const buriedEl = document.getElementById('buried');
+  const blzEl = document.getElementById('blz');
+  const barFillEl = document.getElementById('barFill');
+  const hintEl = document.getElementById('hint');
+  const overlay = document.getElementById('overlay');
+  const restartBtn = document.getElementById('restart');
+  const deathLine = document.getElementById('deathLine');
+  const card = document.getElementById('card');
 
-    const overlay = document.getElementById("overlay");
-    const scoreEl = document.getElementById("score");
-    const highEl = document.getElementById("high");
-    const comboEl = document.getElementById("combo");
-    const buriedAtEl = document.getElementById("buriedAt");
-    const blizzardEl = document.getElementById("blizzard");
-    const barEl = document.getElementById("bar");
-    const hintEl = document.getElementById("hint");
-    const finalScoreEl = document.getElementById("finalScore");
-    const finalHighEl = document.getElementById("finalHigh");
+  const snowCtx = snowCanvas.getContext('2d', { alpha:true });
+  const pileCtx = pileCanvas.getContext('2d', { alpha:true });
 
-    // ===== Canvas sizing =====
-    function resize() {
-      const dpr = Math.max(1, window.devicePixelRatio || 1);
-      canvas.width = Math.floor(window.innerWidth * dpr);
-      canvas.height = Math.floor(window.innerHeight * dpr);
-      canvas.style.width = window.innerWidth + "px";
-      canvas.style.height = window.innerHeight + "px";
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    }
-    window.addEventListener("resize", resize);
-    resize();
+  // =========================
+  // Resize
+  // =========================
+  function resize() {
+    const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
+    snowCanvas.width = Math.floor(window.innerWidth * dpr);
+    snowCanvas.height = Math.floor(window.innerHeight * dpr);
+    snowCanvas.style.width = '100%';
+    snowCanvas.style.height = '100%';
+    snowCtx.setTransform(dpr,0,0,dpr,0,0);
 
-    // ===== Game state =====
-    let score = 0;
-    let high = Number(localStorage.getItem("snowmansapiary_highscore") || 0);
-    highEl.textContent = high;
+    pileCanvas.width = Math.floor(window.innerWidth * dpr);
+    pileCanvas.height = Math.floor(Math.max(220, window.innerHeight * 0.28) * dpr);
+    pileCanvas.style.width = '100%';
+    pileCanvas.style.height = '28vh';
+    pileCtx.setTransform(dpr,0,0,dpr,0,0);
+  }
+  window.addEventListener('resize', resize, { passive:true });
+  resize();
 
-    let gameOver = false;
-    let lastBuriedScore = null;
-
-    // Combo + Blizzard bar
-    let combo = 0;
-    let bar = 0;                 // 0..1
-    let lastTapTime = 0;
-    const comboWindowMs = 320;
-
-    // Make bar easier to max: higher gain + slower decay
-    const barGainPerTap = 0.34;
-    const barDecayPerSec = 0.35;
-
-    // Blizzard
-    let blizzardActive = false;
-    let blizzardTimeLeft = 0;
-
-    // Snow
-    const flakes = [];
-    const baseMaxFlakes = 140;
-    let maxFlakes = baseMaxFlakes;
-
-    // Accumulation
-    let snowLevel = 0;
-    let targetSnowLevel = 0;
-    const maxSnowLevel = 320;
-
-    // Rise rate (normal)
-    const baseRisePerSecond = 6.8;
-
-    // Drift shape
-    const driftWaves = 3;
-    const driftNoise = 12;
-
-    // Particles
-    const puffs = [];
-    const texts = [];
-
-    function setScore(v){
-      score = Math.max(0, Math.floor(v));
-      scoreEl.textContent = score;
-      if (score > high){
-        high = score;
-        localStorage.setItem("snowmansapiary_highscore", String(high));
-        highEl.textContent = high;
-      }
-    }
-
-    function renderBuriedAt(){
-      buriedAtEl.textContent = (lastBuriedScore === null) ? "—" : String(lastBuriedScore);
-    }
-
-    function setCombo(v){
-      combo = Math.max(0, Math.floor(v));
-      comboEl.textContent = "x" + combo;
-    }
-
-    function setBar(v){
-      bar = Math.max(0, Math.min(1, v));
-      barEl.style.width = (bar * 100).toFixed(0) + "%";
-    }
-
-    function setBlizzardLabel(){
-      if (blizzardActive){
-        blizzardEl.textContent = `BLIZZARD! ${Math.ceil(blizzardTimeLeft)}s`;
-      } else {
-        if (bar >= 1) blizzardEl.textContent = "READY ❄️";
-        else if (bar >= 0.66) blizzardEl.textContent = "building";
-        else if (bar >= 0.33) blizzardEl.textContent = "warming";
-        else blizzardEl.textContent = "idle";
-      }
-    }
-
-    function initFlakes(){
-      flakes.length = 0;
-      for (let i=0; i<maxFlakes; i++){
-        flakes.push({
-          x: rand(0, window.innerWidth),
-          y: rand(0, window.innerHeight),   // IMPORTANT: start visible immediately
-          r: rand(1.2, 4.2),
-          s: rand(0.8, 2.0),
-          d: rand(-0.8, 0.8),
-          a: rand(0.35, 0.9),
-        });
-      }
-    }
-
-    // ===== Drawing =====
-    function drawDrift(level){
-      const w = window.innerWidth;
-      const h = window.innerHeight;
-
-      ctx.save();
-      ctx.globalAlpha = 0.95;
-
-      ctx.beginPath();
-      ctx.moveTo(0, h);
-
-      const topYBase = h - level;
-      for (let x=0; x<=w; x+=16){
-        const t = x / w;
-        const wave = Math.sin(t * Math.PI * 2 * driftWaves);
-        ctx.lineTo(x, topYBase + wave * driftNoise);
-      }
-
-      ctx.lineTo(w, h);
-      ctx.closePath();
-
-      const grad = ctx.createLinearGradient(0, topYBase - 40, 0, h);
-      grad.addColorStop(0, "rgba(255,255,255,0.92)");
-      grad.addColorStop(1, "rgba(255,255,255,0.80)");
-      ctx.fillStyle = grad;
-      ctx.fill();
-
-      ctx.globalAlpha = 0.25;
-      ctx.strokeStyle = "white";
-      ctx.lineWidth = 2;
-      ctx.stroke();
-
-      ctx.restore();
-      ctx.globalAlpha = 1;
-    }
-
-    function addPuff(x, y, strength=1){
-      const count = Math.floor(22 + 12 * strength);
-      for (let i=0; i<count; i++){
-        puffs.push({
-          x, y,
-          vx: rand(-3.5, 3.5) * (0.6 + strength*0.15),
-          vy: rand(-6.0, -2.0) * (0.7 + strength*0.10),
-          r: rand(1.2, 4.0),
-          a: rand(0.45, 0.95),
-          life: rand(0.55, 1.0)
-        });
-      }
-      while (puffs.length > 320) puffs.shift();
-    }
-
-    function addText(x, y, word){
-      texts.push({
-        x, y,
-        word,
-        vx: rand(-0.6, 0.6),
-        vy: rand(-2.8, -1.6),
-        life: 0.9,
-        maxLife: 0.9,
-        size: rand(16, 22),
-        rot: rand(-0.12, 0.12)
+  // =========================
+  // Snow (flakes)
+  // =========================
+  const flakes = [];
+  function initFlakes(count=140){
+    flakes.length = 0;
+    for(let i=0;i<count;i++){
+      flakes.push({
+        x: rand(0, window.innerWidth),
+        y: rand(-window.innerHeight, window.innerHeight),
+        r: rand(1.2, 4.2),
+        s: rand(18, 60),        // fall speed px/sec
+        d: rand(-20, 20),       // drift
+        a: rand(0.35, 0.95),    // alpha
       });
-      while (texts.length > 60) texts.shift();
+    }
+  }
+  initFlakes(150);
+
+  // =========================
+  // Game State
+  // =========================
+  let score = 0;
+  let combo = 0;
+  let high = Number(localStorage.getItem('snowmans_high') || 0);
+  highEl.textContent = high;
+
+  let alive = true;
+
+  // Snow pile height (0..1 across the pile canvas height)
+  let pileLevel = 0.12; // start with some snow visible for “game feel”
+  let buriedAtScore = null;
+
+  // The “temptation bar”
+  let blizzardBar = 0;          // 0..1
+  let blizzardActive = false;
+  let blizzardTimeLeft = 0;
+  let blizzardDuration = 0;
+  let blizzardElapsed = 0;
+  let blizzardFatigue = 0;      // 0..1
+
+  // For “not fair” design: blizzard becomes brutal quickly.
+  // Hidden strategy: don’t trigger it.
+  const TUNING = {
+    // Pile growth baseline (normal)
+    basePileRise: 0.020,        // per second
+    // Pile growth from snow intensity (normal)
+    snowPileCoupling: 0.00085,  // per flake speed effect
+
+    // Shovel power (normal)
+    shovelBase: 0.065,
+    shovelComboGain: 0.010,
+
+    // Combo behavior
+    comboDecayTime: 0.95,       // seconds without taps -> combo drops
+    comboMax: 35,
+
+    // Blizzard bar: fills gradually (tempting but avoidable)
+    barFillPerTap: 0.042,       // 3-4 quick taps can trigger if you go nuts
+    barLeakPerSec: 0.06,        // drains slowly when you chill (this is the “life” metaphor)
+
+    // Blizzard settings
+    blizzardMin: 10,
+    blizzardMax: 18,
+
+    // Blizzard intensity (VERY hard)
+    blizzardSnowMultiplier: 4.3,   // flakes speed multiplier
+    blizzardPileRiseMultiplier: 7.5, // pile rises MUCH faster
+    blizzardShakeMax: 1.0,         // shake strength factor
+
+    // Blizzard fatigue (shovel gets weaker as blizzard continues)
+    blizzardFatigueMaxLoss: 0.62,  // ends at 38% power (harsh)
+    blizzardFatigueCurve: 2.4,     // how quickly fatigue ramps (higher = harsher faster)
+
+    // “Fair-ish” mercy floor (still brutal, but not literally impossible)
+    shovelFloor: 0.28,             // never below 28% effective
+  };
+
+  let lastTapTime = 0;
+
+  // =========================
+  // Effects: poof/pop text
+  // =========================
+  const poofs = ["poof", "pop", "pff!", "whoomf", "thwip", "bop"];
+  function spawnPoof(x,y,txt){
+    const d = document.createElement('div');
+    d.className = 'poof';
+    d.textContent = txt || poofs[Math.floor(Math.random()*poofs.length)];
+    d.style.left = x + 'px';
+    d.style.top = y + 'px';
+    d.style.fontSize = (12 + Math.random()*10) + 'px';
+    document.body.appendChild(d);
+    setTimeout(()=> d.remove(), 700);
+  }
+
+  // =========================
+  // Blizzard start/end
+  // =========================
+  function startBlizzard(){
+    blizzardActive = true;
+    blizzardTimeLeft = rand(TUNING.blizzardMin, TUNING.blizzardMax);
+    blizzardDuration = blizzardTimeLeft;
+    blizzardElapsed = 0;
+    blizzardFatigue = 0;
+
+    blzEl.textContent = "ACTIVE";
+    hintEl.textContent = "Blizzard! 😈 Tap like your life depends on it.";
+  }
+
+  function endBlizzard(){
+    blizzardActive = false;
+    blizzardTimeLeft = 0;
+    blizzardBar = 0;
+
+    blzEl.textContent = "idle";
+    hintEl.textContent = "Tap the pile to shovel ❄️ (avoid the blizzard...)";
+    document.body.classList.remove('shake');
+  }
+
+  // =========================
+  // Buried
+  // =========================
+  function die(reason){
+    if(!alive) return;
+    alive = false;
+    buriedAtScore = score;
+    buriedEl.textContent = String(score);
+    deathLine.textContent = reason || "The snow won this round.";
+    overlay.style.display = 'flex';
+    document.body.classList.remove('shake');
+  }
+
+  function reset(){
+    alive = true;
+    overlay.style.display = 'none';
+
+    score = 0;
+    combo = 0;
+    lastTapTime = 0;
+
+    pileLevel = 0.12;
+    buriedAtScore = null;
+    buriedEl.textContent = "—";
+
+    blizzardBar = 0;
+    blizzardActive = false;
+    blizzardTimeLeft = 0;
+    blizzardDuration = 0;
+    blizzardElapsed = 0;
+    blizzardFatigue = 0;
+    blzEl.textContent = "idle";
+    hintEl.textContent = "Tap the pile to shovel ❄️";
+
+    // reset flakes positions a bit
+    for(const f of flakes){
+      f.x = rand(0, window.innerWidth);
+      f.y = rand(-window.innerHeight, window.innerHeight);
+    }
+  }
+  restartBtn.addEventListener('click', reset);
+
+  // =========================
+  // Pile rendering
+  // =========================
+  function drawPile(){
+    const w = window.innerWidth;
+    const h = Math.max(220, window.innerHeight * 0.28);
+    pileCtx.clearRect(0,0,w,h);
+
+    // Pile top curve based on pileLevel with waviness
+    const topY = h - (pileLevel * h);
+    const wave = 14 + pileLevel * 18;
+    pileCtx.beginPath();
+    pileCtx.moveTo(0, h);
+
+    const steps = 8;
+    for(let i=0;i<=steps;i++){
+      const x = (i/steps) * w;
+      const wob = Math.sin((i/steps)*Math.PI*2 + pileLevel*4.2) * wave
+                + Math.sin((i/steps)*Math.PI*4 + pileLevel*2.1) * (wave*0.5);
+      const y = topY + wob;
+      pileCtx.lineTo(x, y);
+    }
+    pileCtx.lineTo(w, h);
+    pileCtx.closePath();
+
+    // Fill
+    pileCtx.fillStyle = "rgba(245,247,255,0.92)";
+    pileCtx.fill();
+
+    // Shadow / shading
+    pileCtx.save();
+    pileCtx.globalAlpha = 0.18;
+    pileCtx.fillStyle = "#000";
+    pileCtx.translate(0, 6);
+    pileCtx.fill();
+    pileCtx.restore();
+
+    // highlight ridge
+    pileCtx.save();
+    pileCtx.globalAlpha = 0.20;
+    pileCtx.strokeStyle = "rgba(255,255,255,0.95)";
+    pileCtx.lineWidth = 2;
+    pileCtx.beginPath();
+    pileCtx.moveTo(0, topY);
+    for(let i=0;i<=steps;i++){
+      const x = (i/steps) * w;
+      const wob = Math.sin((i/steps)*Math.PI*2 + pileLevel*4.2) * wave
+                + Math.sin((i/steps)*Math.PI*4 + pileLevel*2.1) * (wave*0.5);
+      const y = topY + wob;
+      pileCtx.lineTo(x, y);
+    }
+    pileCtx.stroke();
+    pileCtx.restore();
+  }
+
+  // =========================
+  // Click / Tap to shovel
+  // =========================
+  function onShovelTap(clientX, clientY){
+    if(!alive) return;
+
+    const now = performance.now()/1000;
+    const dtTap = now - lastTapTime;
+    lastTapTime = now;
+
+    // Combo: quick taps build combo; slow taps drop it
+    if(dtTap < 0.55) combo = clamp(combo + 1, 0, TUNING.comboMax);
+    else combo = clamp(combo - 2, 0, TUNING.comboMax);
+
+    // Score gain
+    const gain = 1 + Math.floor(combo * 0.6) + (blizzardActive ? 2 : 0);
+    score += gain;
+
+    // Blizzard bar temptation:
+    // tapping builds the bar (chasing score = risk)
+    blizzardBar = clamp(blizzardBar + TUNING.barFillPerTap * (1 + combo*0.02), 0, 1);
+    if(!blizzardActive && blizzardBar >= 1){
+      startBlizzard();
     }
 
-    function updateDrawPuffs(dt){
-      for (let i=puffs.length-1; i>=0; i--){
-        const p = puffs[i];
-        p.life -= dt;
-        if (p.life <= 0){ puffs.splice(i,1); continue; }
-        p.vy += 3.4 * dt;
-        p.x += p.vx;
-        p.y += p.vy;
+    // Shovel power
+    const base = TUNING.shovelBase + combo * TUNING.shovelComboGain;
 
-        ctx.beginPath();
-        ctx.globalAlpha = p.a * Math.max(0, p.life);
-        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
-        ctx.fillStyle = "#fff";
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
+    // Blizzard fatigue makes shovel weaker as blizzard goes on (brutal later)
+    let fatigueMult = 1;
+    if(blizzardActive){
+      // curve that ramps quickly (not fair)
+      const p = clamp(blizzardElapsed / Math.max(0.001, blizzardDuration), 0, 1);
+      const curve = Math.pow(p, TUNING.blizzardFatigueCurve); // ramps harshly
+      blizzardFatigue = curve;
+      fatigueMult = 1 - (TUNING.blizzardFatigueMaxLoss * blizzardFatigue);
+      fatigueMult = Math.max(TUNING.shovelFloor, fatigueMult);
     }
 
-    function updateDrawTexts(dt){
-      for (let i=texts.length-1; i>=0; i--){
-        const t = texts[i];
-        t.life -= dt;
-        if (t.life <= 0){ texts.splice(i,1); continue; }
-        t.x += t.vx;
-        t.y += t.vy;
+    // Remove snow from pile
+    let remove = base * (blizzardActive ? 0.95 : 1.05) * fatigueMult;
 
-        const alpha = Math.max(0, t.life / t.maxLife);
+    // Tiny randomness so it feels physical
+    remove *= rand(0.92, 1.12);
 
-        ctx.save();
-        ctx.globalAlpha = alpha;
-        ctx.translate(t.x, t.y);
-        ctx.rotate(t.rot);
+    pileLevel = clamp(pileLevel - remove, 0, 1);
 
-        ctx.font = `900 ${t.size}px system-ui, -apple-system, Segoe UI, Roboto, Arial`;
-        ctx.textAlign = "center";
-        ctx.textBaseline = "middle";
+    // Poof text
+    spawnPoof(clientX, clientY, (combo >= 8 && Math.random()<0.55) ? "POOF!" : null);
 
-        ctx.lineWidth = 6;
-        ctx.strokeStyle = "rgba(0,0,0,0.35)";
-        ctx.strokeText(t.word, 0, 0);
+    // Update HUD immediately
+    scoreEl.textContent = score;
+    comboEl.textContent = "x" + combo;
 
-        ctx.fillStyle = "rgba(255,255,255,0.95)";
-        ctx.fillText(t.word, 0, 0);
+    // High score
+    if(score > high){
+      high = score;
+      localStorage.setItem('snowmans_high', String(high));
+      highEl.textContent = Your Highest Score;
+    }
+  }
 
-        ctx.restore();
-        ctx.globalAlpha = 1;
+  // Make pile clickable
+  pileCanvas.addEventListener('pointerdown', (e) => {
+    // only shovel when tapping near the bottom region (pile canvas)
+    onShovelTap(e.clientX, e.clientY);
+  }, { passive:true });
+
+  // =========================
+  // Main loop
+  // =========================
+  let last = performance.now();
+  function tick(){
+    const now = performance.now();
+    const dt = (now - last) / 1000;
+    last = now;
+
+    // Update HUD bar
+    barFillEl.style.width = (blizzardBar * 100).toFixed(1) + "%";
+
+    // Blizzard timers + shake
+    if(blizzardActive){
+      blizzardTimeLeft -= dt;
+      blizzardElapsed += dt;
+
+      // Shake ramps up as blizzard continues
+      const prog = clamp(blizzardElapsed / Math.max(0.001, blizzardDuration), 0, 1);
+      const shakeFactor = prog; // stronger later
+      if(shakeFactor > 0.12) document.body.classList.add('shake');
+      else document.body.classList.remove('shake');
+
+      blzEl.textContent = "ACTIVE " + Math.ceil(blizzardTimeLeft) + "s";
+
+      if(blizzardTimeLeft <= 0){
+        endBlizzard();
+      }
+    } else {
+      // Bar drains when you're not going crazy (metaphor reward)
+      blizzardBar = clamp(blizzardBar - TUNING.barLeakPerSec * dt, 0, 1);
+
+      // small hint changes based on bar (temptation)
+      if(blizzardBar > 0.85) blzEl.textContent = "danger";
+      else if(blizzardBar > 0.55) blzEl.textContent = "building";
+      else blzEl.textContent = "idle";
+    }
+
+    // Combo decay if you stop tapping
+    if(alive){
+      const t = performance.now()/1000;
+      const since = t - lastTapTime;
+      if(since > TUNING.comboDecayTime && combo > 0){
+        // decay smoothly
+        combo = clamp(combo - dt * 3.2, 0, TUNING.comboMax);
+        comboEl.textContent = "x" + Math.floor(combo);
       }
     }
 
-    // ===== Blizzard =====
-    function startBlizzard(){
-      blizzardActive = true;
-      blizzardTimeLeft = rand(10, 20);
-      document.body.classList.add("shake");
+    // Snow physics
+    const snowSpeedMult = blizzardActive ? TUNING.blizzardSnowMultiplier : 1.0;
+    snowCtx.clearRect(0,0,window.innerWidth, window.innerHeight);
 
-      addText(window.innerWidth * 0.5, window.innerHeight * 0.24, "BLIZZARD!!!");
-      setBlizzardLabel();
+    for(const f of flakes){
+      f.y += f.s * snowSpeedMult * dt;
+      f.x += f.d * dt * (blizzardActive ? 3.2 : 1.0);
 
-      // prevent instant retrigger
-      setBar(0);
+      // wrap
+      if(f.y > window.innerHeight + 12){
+        f.y = rand(-80, -12);
+        f.x = rand(0, window.innerWidth);
+      }
+      if(f.x < -20) f.x = window.innerWidth + 20;
+      if(f.x > window.innerWidth + 20) f.x = -20;
+
+      snowCtx.globalAlpha = f.a;
+      snowCtx.beginPath();
+      snowCtx.arc(f.x, f.y, f.r, 0, Math.PI*2);
+      snowCtx.fillStyle = "rgba(255,255,255,1)";
+      snowCtx.fill();
+    }
+    snowCtx.globalAlpha = 1;
+
+    // Pile rise
+    if(alive){
+      // base + coupling with intensity (more intense snow makes pile rise faster)
+      let rise = TUNING.basePileRise;
+
+      // if blizzard, pile rise becomes “oh no”
+      if(blizzardActive){
+        // also ramps over time so it catches you off guard
+        const prog = clamp(blizzardElapsed / Math.max(0.001, blizzardDuration), 0, 1);
+        const ramp = lerp(1.5, TUNING.blizzardPileRiseMultiplier, prog);
+        rise *= ramp;
+      }
+
+      // Couple to snow intensity roughly
+      const intensity = blizzardActive ? 1.0 : 0.55;
+      rise += (TUNING.snowPileCoupling * intensity) * dt * 60;
+
+      pileLevel = clamp(pileLevel + rise * dt, 0, 1);
+      if(pileLevel >= 0.985){
+        die(blizzardActive
+          ? "The blizzard buried you. ☃️."
+          : "You got buried☃️.");
+      }
     }
 
-    function endBlizzard(){
-      blizzardActive = false;
-      blizzardTimeLeft = 0;
-      document.body.classList.remove("shake");
-      addText(window.innerWidth * 0.5, window.innerHeight * 0.24, "calm...");
-      setBlizzardLabel();
-    }
+    // Render pile
+    drawPile();
 
-    // ===== Game over / reset =====
-    function doGameOver(){
-      gameOver = true;
-      lastBuriedScore = score;
-      renderBuriedAt();
+    requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
 
-      finalScoreEl.textContent = String(score);
-      finalHighEl.textContent = String(high);
-      overlay.style.display = "grid";
+  // init HUD
+  scoreEl.textContent = score;
+  comboEl.textContent = "x0";
+  buriedEl.textContent = "—";
+  highEl.textContent = high;
 
-      document.body.classList.remove("shake");
-    }
-
-    function resetGame(){
-      gameOver = false;
-      overlay.style.display = "none";
-
-      document.body.classList.remove("shake");
-
-      setScore(0);
-      setCombo(0);
-      setBar(0);
-      lastTapTime = 0;
-
-      snowLevel = 0;
-      targetSnowLevel = 0;
-
-      blizzardActive = false;
-      blizzardTimeLeft = 0;
-
-      puffs.length = 0;
-      texts.length = 0;
-
-      initFlakes();
-      renderBuriedAt();
-      setBlizzardLabel();
-
-      hintEl.style.display = "";
-      setTimeout(()=>{ hintEl.style.display = "none"; }, 3500);
-    }
-
-    // ===== Input =====
-    document.addEventListener("click", (e) => {
-      if (gameOver){ resetGame(); return; }
-      if (e.target.closest("a")) return;
-
-      const x = e.clientX;
-      const y = e.clientY;
-
-      const pileTop = window.innerHeight - snowLevel;
-
-      // Only shovel when clicking the snow pile region
-      if (y >= pileTop){
-        const now = performance.now();
-
-        if (now - lastTapTime <= comboWindowMs) setCombo(combo + 1);
-        else setCombo(1);
-        lastTapTime = now;
-
-        // Fill bar easier
-        setBar(bar + barGainPerTap);
-
-        // Visual feedback
-        const strength = Math.min(6, 1 + combo * 0.22);
-        addPuff(x, y, strength);
-        addText(x, y - 24, Math.random() < 0.5 ? "POOF!" : "POP!");
-        hintEl.style.display = "none";
-
-        // Points
-        const points = 9 + combo * 3;
-        setScore(score + points);
-
-        // Shoveling removes more in blizzard
-        const shovelBoost = blizzardActive ? 2.4 : 1.0;
-        const remove = (14 + combo * 4) * shovelBoost;
-
-        targetSnowLevel = Math.max(0, targetSnowLevel - remove);
-        snowLevel = Math.max(0, snowLevel - remove * 0.35);
-
-        // Trigger blizzard if bar full
-        if (!blizzardActive && bar >= 1) startBlizzard();
-      }
-    });
-
-    // ===== Main loop =====
-    let last = performance.now();
-
-    function loop(now){
-      const dt = Math.min(0.05, (now - last) / 1000);
-      last = now;
-
-      // Blizzard timer
-      if (blizzardActive){
-        blizzardTimeLeft -= dt;
-        if (blizzardTimeLeft <= 0) endBlizzard();
-      }
-
-      // Bar decay (slower = easier to fill)
-      if (!blizzardActive){
-        setBar(bar - barDecayPerSec * dt);
-      }
-
-      // If no taps for a bit, combo drops to 0
-      if (now - lastTapTime > 900 && combo !== 0) setCombo(0);
-
-      setBlizzardLabel();
-
-      // Flake density
-      const aggression = Math.min(1.3, score / 850);
-      const desired = baseMaxFlakes + Math.floor(bar * 70) + Math.floor(aggression * 40) + (blizzardActive ? 80 : 0);
-      maxFlakes = Math.max(baseMaxFlakes, Math.min(320, desired));
-
-      while (flakes.length < maxFlakes){
-        flakes.push({
-          x: rand(0, window.innerWidth),
-          y: rand(-40, window.innerHeight),
-          r: rand(1.0, 4.4),
-          s: rand(0.9, 2.2),
-          d: rand(-1.2, 1.2),
-          a: rand(0.35, 0.9),
-        });
-      }
-      while (flakes.length > maxFlakes) flakes.pop();
-
-      // Snow rise
-      const normalRise = baseRisePerSecond + (bar * 7.6) + (aggression * 5.4);
-      const rise = normalRise * (blizzardActive ? 3.8 : 1.0);
-
-      targetSnowLevel = Math.min(maxSnowLevel, targetSnowLevel + rise * dt);
-      snowLevel += (targetSnowLevel - snowLevel) * 0.02;
-
-      // Game over when buried
-      if (!gameOver && snowLevel >= maxSnowLevel - 2){
-        doGameOver();
-      }
-
-      // Draw
-      ctx.clearRect(0, 0, window.innerWidth, window.innerHeight);
-
-      const pileTop = window.innerHeight - snowLevel;
-
-      // Flake speed
-      const baseSpeedBoost = 1 + bar * 1.4;
-      const blizBoost = blizzardActive ? 3.2 : 1.0;
-      const speedBoost = baseSpeedBoost * blizBoost;
-
-      for (const f of flakes){
-        // Extra sideways wind during blizzard
-        const wind = blizzardActive ? (Math.sin((now/180) + f.y/70) * 2.6) : 0;
-
-        f.y += f.s * speedBoost;
-        f.x += f.d + wind;
-
-        // When flakes reach the pile, recycle above
-        if (f.y > pileTop - rand(0, 20)){
-          f.y = -10;
-          f.x = rand(0, window.innerWidth);
-          // tiny contribution to pile
-          targetSnowLevel = Math.min(maxSnowLevel, targetSnowLevel + 0.02);
-        }
-
-        if (f.x > window.innerWidth + 20) f.x = -20;
-        if (f.x < -20) f.x = window.innerWidth + 20;
-
-        ctx.beginPath();
-        ctx.globalAlpha = f.a;
-        ctx.arc(f.x, f.y, f.r, 0, Math.PI * 2);
-        ctx.fillStyle = "#ffffff";
-        ctx.fill();
-      }
-      ctx.globalAlpha = 1;
-
-      drawDrift(snowLevel);
-      updateDrawPuffs(dt);
-      updateDrawTexts(dt);
-
-      requestAnimationFrame(loop);
-    }
-
-    // ===== Start =====
-    renderBuriedAt();
-    setBlizzardLabel();
-    setBar(0);
-    initFlakes();
-
-    setTimeout(()=>{ hintEl.style.display = "none"; }, 3500);
-    requestAnimationFrame(loop);
-  </script>
+})();
+</script>
 </body>
 </html>

@@ -1,104 +1,105 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>Snowman’s Apiary</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <style>
-html,body{
-  margin:0;
-  padding:0;
-  height:100%;
-  background: radial-gradient(circle at top, #1b2a3a, #0a1018);
-  color:white;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  overflow:hidden;
+html,body{margin:0;height:100%;overflow:hidden;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif}
+body{
+  background:radial-gradient(1200px 800px at 30% 10%,#1b3562,#060b14 65%);
+  color:#f4f7ff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 
-/* Background snow canvas */
-canvas#snow{
-  position:fixed;
-  inset:0;
-  z-index:0;
-}
+canvas{position:fixed;inset:0}
+#snow{z-index:1;pointer-events:none}
+#pile{z-index:4;bottom:0;height:30vh;pointer-events:auto}
 
-/* Foreground blur layer */
-.blur{
-  position:fixed;
-  inset:0;
-  backdrop-filter: blur(12px);
-  z-index:1;
-}
-
-/* Content card */
 .card{
-  position:relative;
-  z-index:2;
-  max-width:720px;
-  margin:60px auto;
-  padding:24px;
-  border-radius:18px;
-  background: rgba(20,28,38,0.85);
-  box-shadow:0 30px 80px rgba(0,0,0,0.5);
+  z-index:5;
+  width:min(720px,92vw);
+  padding:18px;
   text-align:center;
+  background:rgba(255,255,255,.08);
+  border:1px solid rgba(255,255,255,.12);
+  border-radius:22px;
+  backdrop-filter:blur(14px);
+  box-shadow:0 30px 80px rgba(0,0,0,.6);
 }
 
-.card img{
+.logo{
   max-width:100%;
-  border-radius:14px;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.15);
+  background:rgba(0,0,0,.35);
 }
 
-h1{
-  margin:16px 0 6px;
-  font-size:40px;
-}
-
-p{
-  opacity:0.88;
-  font-size:18px;
-  line-height:1.4;
-}
-
+h1{margin:10px 0 6px;font-size:clamp(30px,6vw,52px)}
+p{margin:6px 0;opacity:.85}
 .btn{
   display:inline-block;
-  margin-top:12px;
+  margin-top:10px;
   padding:12px 18px;
   border-radius:14px;
-  border:1px solid rgba(255,255,255,0.15);
-  background:rgba(255,255,255,0.08);
+  border:1px solid rgba(255,255,255,.2);
+  background:rgba(255,255,255,.12);
   color:white;
-  text-decoration:none;
   font-weight:700;
+  text-decoration:none;
 }
 
-/* HUD */
 .hud{
   position:fixed;
-  top:12px;
-  left:12px;
-  z-index:3;
-  background:rgba(0,0,0,0.35);
+  top:10px;left:10px;
+  z-index:6;
+  font-size:12px;
+  background:rgba(0,0,0,.25);
+  border:1px solid rgba(255,255,255,.12);
   border-radius:14px;
-  padding:10px 12px;
-  font-size:14px;
-  backdrop-filter: blur(10px);
+  padding:8px 10px;
+  backdrop-filter:blur(10px);
+  pointer-events:none;
+}
+.row{display:flex;justify-content:space-between;gap:12px}
+.bar{height:8px;background:rgba(255,255,255,.15);border-radius:99px;overflow:hidden;margin-top:6px}
+.fill{height:100%;background:white;width:0%}
+
+.poof{
+  position:fixed;
+  font-weight:900;
+  pointer-events:none;
+  animation:poof .6s ease-out forwards;
+}
+@keyframes poof{
+  0%{opacity:0;transform:translate(-50%,-50%) scale(.8)}
+  20%{opacity:1}
+  100%{opacity:0;transform:translate(-50%,-90%) scale(1.2)}
 }
 
-.hud div{margin:2px 0}
+.shake{animation:shake .15s infinite}
+@keyframes shake{
+  0%{transform:translate(0,0)}
+  25%{transform:translate(2px,-2px)}
+  50%{transform:translate(-2px,2px)}
+  75%{transform:translate(2px,2px)}
+}
 
-/* Snow pile */
-#pile{
-  position:fixed;
-  bottom:0;
-  left:0;
-  width:100%;
-  height:0;
-  background:linear-gradient(#f4f4f4,#dcdcdc);
-  border-top-left-radius:40px;
-  border-top-right-radius:40px;
-  z-index:2;
-  pointer-events:auto;
+.overlay{
+  position:fixed;inset:0;display:none;
+  align-items:center;justify-content:center;
+  background:rgba(0,0,0,.6);
+  z-index:10;
+}
+.panel{
+  background:rgba(10,18,30,.9);
+  border:1px solid rgba(255,255,255,.2);
+  border-radius:18px;
+  padding:18px;
+  text-align:center;
 }
 </style>
 </head>
@@ -106,144 +107,130 @@ p{
 <body>
 
 <canvas id="snow"></canvas>
-<div class="blur"></div>
+<canvas id="pile"></canvas>
 
 <div class="hud">
-  <div>Score <span id="score">0</span></div>
-  <div>Combo x<span id="combo">0</span></div>
-  <div>Blizzard <span id="blizzard">idle</span></div>
-  <div style="opacity:.7">Tap pile to shovel ❄️</div>
+  <div class="row"><span>Score</span><b id="score">0</b></div>
+  <div class="row"><span>High</span><b id="high">0</b></div>
+  <div class="row"><span>Combo</span><b id="combo">x0</b></div>
+  <div class="row"><span>Blizzard</span><b id="blz">idle</b></div>
+  <div class="bar"><div class="fill" id="bar"></div></div>
+  <div style="opacity:.75;margin-top:4px">Tap pile to shovel ❄️</div>
 </div>
 
-<div id="pile"></div>
-
 <div class="card">
-  <img src="logo.png" alt="Snowman’s Apiary">
+  <img src="logo.png" class="logo">
   <h1>Snowman’s Apiary</h1>
-  <p>Local honey & apiary goods.<br>
-  Currently out of stock — expecting more honey by summer.</p>
+  <p>Local honey &amp; apiary goods.</p>
+  <p>Currently out of stock — expecting more honey by summer.</p>
   <a class="btn" href="mailto:snowmansapiary@yahoo.com">Email Snowman’s Apiary</a>
 </div>
 
+<div class="overlay" id="over">
+  <div class="panel">
+    <h2>You got buried ☃️</h2>
+    <p>The blizzard always wins eventually.</p>
+    <button onclick="reset()">Try again</button>
+  </div>
+</div>
+
 <script>
-/* =====================
-   GAME STATE
-===================== */
-let pileHeight = 0;
-let score = 0;
-let combo = 0;
+const snow=document.getElementById("snow").getContext("2d");
+const pile=document.getElementById("pile").getContext("2d");
+const W=()=>innerWidth,H=()=>innerHeight;
+snow.canvas.width=pile.canvas.width=W();
+snow.canvas.height=H();
+pile.canvas.height=H()*0.3;
 
-let blizzardActive = false;
-let blizzardTime = 0;
-
-/* Blizzard cruelty tuning */
-const BASE_SNOW = 0.06;
-const BLIZZARD_SNOW = 0.9;
-
-/* Shovel power (INTENTIONALLY WEAK) */
-const NORMAL_SHOVEL = 10;
-const BLIZZARD_SHOVEL_START = 5;
-const BLIZZARD_SHOVEL_MIN = 1;
-
-/* =====================
-   HUD
-===================== */
-const pile = document.getElementById("pile");
-const scoreEl = document.getElementById("score");
-const comboEl = document.getElementById("combo");
-const blizzardEl = document.getElementById("blizzard");
-
-/* =====================
-   SHOVEL
-===================== */
-pile.addEventListener("click", ()=>{
-  let power = NORMAL_SHOVEL;
-
-  if(blizzardActive){
-    // shovel weakens over time (never recovers)
-    const fatigue = 1 - (blizzardTime / 12);
-    power = Math.max(BLIZZARD_SHOVEL_MIN, BLIZZARD_SHOVEL_START * fatigue);
-  }
-
-  pileHeight = Math.max(0, pileHeight - power);
-  score += Math.floor(power);
-  combo++;
-
-  scoreEl.textContent = score;
-  comboEl.textContent = combo;
-});
-
-/* =====================
-   GAME LOOP
-===================== */
-function update(){
-  const snowRate = blizzardActive ? BLIZZARD_SNOW : BASE_SNOW;
-  pileHeight += snowRate;
-
-  // Trigger Blizzard if careless
-  if(!blizzardActive && pileHeight > 160){
-    startBlizzard();
-  }
-
-  if(blizzardActive){
-    blizzardTime -= 0.016;
-    if(blizzardTime <= 0){
-      endBlizzard();
-    }
-  }
-
-  pile.style.height = pileHeight + "px";
-  requestAnimationFrame(update);
-}
-
-function startBlizzard(){
-  blizzardActive = true;
-  blizzardTime = 12;
-  blizzardEl.textContent = "ACTIVE";
-}
-
-function endBlizzard(){
-  blizzardActive = false;
-  blizzardEl.textContent = "idle";
-  combo = 0;
-  comboEl.textContent = 0;
-}
-
-/* =====================
-   SNOW PARTICLES
-===================== */
-const canvas = document.getElementById("snow");
-const ctx = canvas.getContext("2d");
-
-function resize(){
-  canvas.width = innerWidth;
-  canvas.height = innerHeight;
-}
-resize();
-addEventListener("resize",resize);
-
-const flakes = Array.from({length:140},()=>({
-  x:Math.random()*innerWidth,
-  y:Math.random()*innerHeight,
-  r:Math.random()*2+1,
-  v:Math.random()*1+0.5
+let flakes=[...Array(160)].map(()=>({
+  x:Math.random()*W(),y:Math.random()*H(),
+  r:Math.random()*3+1,
+  s:Math.random()*40+20
 }));
 
-function snow(){
-  ctx.clearRect(0,0,canvas.width,canvas.height);
-  ctx.fillStyle="rgba(255,255,255,0.9)";
-  flakes.forEach(f=>{
-    f.y += blizzardActive ? f.v*6 : f.v;
-    if(f.y>innerHeight){ f.y=0; f.x=Math.random()*innerWidth; }
-    ctx.beginPath();
-    ctx.arc(f.x,f.y,f.r,0,Math.PI*2);
-    ctx.fill();
-  });
-  requestAnimationFrame(snow);
+let pileLevel=.15;
+let score=0,combo=0;
+let high=+localStorage.getItem("high")||0;
+let bar=0,blizzard=false,blizT=0;
+
+function poof(x,y){
+  const p=document.createElement("div");
+  p.className="poof";
+  p.textContent=Math.random()<.5?"POOF":"POP";
+  p.style.left=x+"px";p.style.top=y+"px";
+  document.body.appendChild(p);
+  setTimeout(()=>p.remove(),600);
 }
 
-snow();
-update();
+pile.canvas.onclick=e=>{
+  combo=Math.min(combo+1,30);
+  score+=1+combo*.3;
+  bar=Math.min(1,bar+.08);
+  poof(e.clientX,e.clientY);
+
+  let shovel=0.028; // WEAK BY DEFAULT
+  if(blizzard) shovel*=0.35; // brutal penalty
+  pileLevel=Math.max(.08,pileLevel-shovel);
+
+  if(bar>=1&&!blizzard){
+    blizzard=true;
+    blizT=14;
+  }
+};
+
+function reset(){
+  pileLevel=.15;score=0;combo=0;bar=0;
+  blizzard=false;
+  document.getElementById("over").style.display="none";
+}
+
+function loop(dt){
+  snow.clearRect(0,0,W(),H());
+  flakes.forEach(f=>{
+    f.y+=f.s*(blizzard?3.5:1)*dt;
+    if(f.y>H()){f.y=-10;f.x=Math.random()*W()}
+    snow.beginPath();
+    snow.arc(f.x,f.y,f.r,0,Math.PI*2);
+    snow.fillStyle="white";snow.fill();
+  });
+
+  pile.clearRect(0,0,W(),pile.canvas.height);
+  pileLevel+=dt*(blizzard?.12:.02);
+  if(pileLevel>1){
+    document.getElementById("over").style.display="flex";
+    blizzard=false;
+  }
+
+  pile.beginPath();
+  pile.moveTo(0,pile.canvas.height);
+  pile.lineTo(W(),pile.canvas.height);
+  pile.lineTo(W(),pile.canvas.height*(1-pileLevel));
+  pile.lineTo(0,pile.canvas.height*(1-pileLevel));
+  pile.fillStyle="rgba(245,247,255,.95)";
+  pile.fill();
+
+  document.getElementById("score").textContent=score;
+  document.getElementById("combo").textContent="x"+Math.floor(combo);
+  document.getElementById("bar").style.width=(bar*100)+"%";
+  document.getElementById("blz").textContent=blizzard?"ACTIVE":"idle";
+
+  if(blizzard){
+    blizT-=dt;
+    document.body.classList.add("shake");
+    if(blizT<=0){blizzard=false;bar=0;document.body.classList.remove("shake")}
+  }
+
+  high=Math.max(high,score);
+  localStorage.setItem("high",high);
+  document.getElementById("high").textContent=high;
+}
+
+let last=performance.now();
+(function frame(t){
+  loop((t-last)/1000);
+  last=t;
+  requestAnimationFrame(frame);
+})(last);
 </script>
 
 </body>

@@ -15,12 +15,12 @@ html, body {
   overflow: hidden;
 }
 
-/* Background blur layer */
+/* Background blur */
 .bg {
   position: fixed;
   inset: 0;
   background: linear-gradient(180deg, #0d2238, #02070d);
-  filter: blur(20px);
+  filter: blur(22px);
   transform: scale(1.1);
   z-index: 0;
 }
@@ -28,7 +28,7 @@ html, body {
 /* Foreground card */
 .card {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   max-width: 720px;
   margin: 70px auto;
   padding: 24px;
@@ -74,17 +74,18 @@ canvas {
   pointer-events: none;
 }
 
-/* Snow pile */
+/* Snow pile (wavy) */
 #pile {
   position: fixed;
   bottom: 0;
-  left: 0;
-  width: 100%;
+  left: -10%;
+  width: 120%;
   height: 0;
-  background: #e9eef2;
-  border-top-left-radius: 50% 30px;
-  border-top-right-radius: 50% 30px;
-  z-index: 3;
+  background: #eef2f6;
+  border-top-left-radius: 60% 40px;
+  border-top-right-radius: 60% 40px;
+  z-index: 4;
+  transition: height 0.12s linear;
 }
 
 /* HUD */
@@ -92,19 +93,55 @@ canvas {
   position: fixed;
   top: 10px;
   left: 10px;
-  z-index: 4;
+  z-index: 5;
   font-size: 13px;
   padding: 8px 10px;
   border-radius: 12px;
   background: rgba(0,0,0,0.35);
   border: 1px solid rgba(255,255,255,0.15);
   backdrop-filter: blur(8px);
+  min-width: 160px;
 }
 
 .hud div {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  margin-bottom: 4px;
+}
+
+/* Blizzard bar */
+.bar {
+  height: 6px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.15);
+  overflow: hidden;
+}
+
+.bar span {
+  display: block;
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #9fd7ff, #ffffff);
+}
+
+/* Game over overlay */
+#overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(5,10,18,0.75);
+  z-index: 10;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+}
+
+#overlay .box {
+  background: rgba(255,255,255,0.08);
+  border-radius: 18px;
+  padding: 28px;
+  border: 1px solid rgba(255,255,255,0.18);
+  backdrop-filter: blur(12px);
 }
 
 /* Screen shake */
@@ -132,7 +169,8 @@ body.blizzard {
   <div><span>Score</span><span id="score">0</span></div>
   <div><span>High</span><span id="high">0</span></div>
   <div><span>Combo</span><span id="combo">x0</span></div>
-  <div><span>Blizzard</span><span id="blizzard">idle</span></div>
+  <div><span>Blizzard</span><span id="bstate">idle</span></div>
+  <div class="bar"><span id="bbar"></span></div>
   <div style="opacity:.7">Tap pile to shovel ❄️</div>
 </div>
 
@@ -142,6 +180,15 @@ body.blizzard {
   <p>Local honey & apiary goods.</p>
   <p><strong>Currently out of stock — expecting more honey by summer.</strong></p>
   <a class="btn" href="mailto:snowmansapiary@yahoo.com">Email Snowman’s Apiary</a>
+</div>
+
+<div id="overlay">
+  <div class="box">
+    <h2>You were buried</h2>
+    <p>Sometimes the trick is knowing when not to push.</p>
+    <p id="final"></p>
+    <a class="btn" onclick="location.reload()">Try again</a>
+  </div>
 </div>
 
 <script>
@@ -156,9 +203,7 @@ addEventListener('resize', resize);
 resize();
 
 const flakes = [];
-const FLAKES = 160;
-
-for(let i=0;i<FLAKES;i++){
+for(let i=0;i<160;i++){
   flakes.push({
     x: Math.random()*innerWidth,
     y: Math.random()*innerHeight,
@@ -167,7 +212,7 @@ for(let i=0;i<FLAKES;i++){
   });
 }
 
-/* Game state */
+/* State */
 let pile = 0;
 let score = 0;
 let combo = 0;
@@ -180,8 +225,7 @@ let blizzardTime = 0;
 function loop(){
   ctx.clearRect(0,0,canvas.width,canvas.height);
 
-  const speed = blizzard ? 4.5 : 1;
-
+  const speed = blizzard ? 4.8 : 1;
   flakes.forEach(f=>{
     f.y += f.v * speed;
     if(f.y > innerHeight) f.y = -10;
@@ -191,12 +235,10 @@ function loop(){
     ctx.fill();
   });
 
-  /* Snow accumulation */
-  pile += blizzard ? 1.9 : 0.35;
+  pile += blizzard ? 2.2 : 0.38;
 
-  /* Blizzard logic */
   if(!blizzard){
-    blizzardMeter += 0.0009;
+    blizzardMeter += 0.001;
     if(blizzardMeter >= 1){
       blizzard = true;
       blizzardTime = 0;
@@ -212,19 +254,26 @@ function loop(){
   }
 
   document.getElementById('pile').style.height = pile + 'px';
-
   document.getElementById('score').textContent = score;
   document.getElementById('combo').textContent = 'x' + combo;
   document.getElementById('high').textContent = high;
-  document.getElementById('blizzard').textContent = blizzard ? 'ACTIVE' : 'idle';
+  document.getElementById('bstate').textContent = blizzard ? 'ACTIVE' : 'idle';
+  document.getElementById('bbar').style.width = (blizzardMeter*100)+'%';
+
+  if(pile > innerHeight){
+    document.getElementById('overlay').style.display = 'flex';
+    document.getElementById('final').textContent =
+      `Final score: ${score}`;
+    return;
+  }
 
   requestAnimationFrame(loop);
 }
 loop();
 
-/* Shoveling — intentionally weak */
+/* Shovel — intentionally weak */
 document.body.addEventListener('pointerdown', ()=>{
-  let base = blizzard ? 3.2 : 6.5;
+  let base = blizzard ? 3.1 : 6.2;
   let fatigue = blizzard ? Math.max(0.25, 1 - blizzardTime * 0.07) : 1;
 
   let removed = base * fatigue;
@@ -238,18 +287,6 @@ document.body.addEventListener('pointerdown', ()=>{
     localStorage.high = high;
   }
 });
-
-/* Lose condition */
-setInterval(()=>{
-  if(pile > innerHeight){
-    pile = 0;
-    score = 0;
-    combo = 0;
-    blizzard = false;
-    blizzardMeter = 0;
-    document.body.classList.remove('blizzard');
-  }
-}, 500);
 </script>
 </body>
 </html>

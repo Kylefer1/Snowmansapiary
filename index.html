@@ -7,9 +7,7 @@
   <style>
     :root{
       --bg1:#0a1320;
-      --bg2:#0e1f35;
       --card:rgba(255,255,255,.06);
-      --card2:rgba(255,255,255,.10);
       --stroke:rgba(255,255,255,.12);
       --text:#f3f6ff;
       --muted:rgba(243,246,255,.82);
@@ -35,9 +33,7 @@
     }
 
     /* Screen shake (activated during blizzard) */
-    .shake{
-      animation: shake .18s infinite linear;
-    }
+    .shake{ animation: shake .18s infinite linear; }
     @keyframes shake{
       0%{transform:translate(0,0)}
       20%{transform:translate(1px,-1px)}
@@ -57,7 +53,7 @@
       padding: 18px 18px 20px;
       text-align:center;
       position:relative;
-      z-index:5;
+      z-index:6;
       backdrop-filter: var(--hudBlur);
     }
     img.logo{
@@ -109,7 +105,7 @@
       inset:0;
       width:100%;
       height:100%;
-      z-index:1;
+      z-index:2;
       pointer-events:none;
     }
 
@@ -119,27 +115,27 @@
       left:0; right:0; bottom:0;
       height: 28vh;
       width:100%;
-      z-index:3;
+      z-index:4;
       pointer-events:auto; /* clickable */
       touch-action: manipulation;
     }
 
-    /* HUD */
+    /* HUD (smaller + less bulky) */
     .hud{
       position:fixed;
       top:10px;
       left:10px;
       z-index:10;
-      background: rgba(0,0,0,.22);
-      border:1px solid rgba(255,255,255,.12);
+      background: rgba(0,0,0,.18);
+      border:1px solid rgba(255,255,255,.10);
       border-radius: 14px;
       padding: 8px 10px;
-      min-width: 170px;
-      max-width: min(240px, calc(100vw - 20px));
+      min-width: 150px;
+      max-width: min(210px, calc(100vw - 20px));
       backdrop-filter: var(--hudBlur);
-      box-shadow: 0 10px 26px rgba(0,0,0,.32);
-      font-size: 13px;
-      line-height:1.25;
+      box-shadow: 0 10px 26px rgba(0,0,0,.28);
+      font-size: 12px;
+      line-height:1.22;
       user-select:none;
       pointer-events:none;
     }
@@ -154,12 +150,12 @@
     .hud .hint{
       margin-top:6px;
       opacity:.80;
-      font-size: 12px;
+      font-size: 11.5px;
     }
 
     .barWrap{
       margin-top:8px;
-      height:10px;
+      height:9px;
       border-radius: 999px;
       background: rgba(255,255,255,.10);
       border:1px solid rgba(255,255,255,.12);
@@ -211,20 +207,9 @@
       padding: 18px 16px;
       text-align:center;
     }
-    .overlay h2{
-      margin: 4px 0 6px;
-      font-size: 26px;
-      letter-spacing:.3px;
-    }
-    .overlay p{
-      margin: 0 0 12px;
-      opacity:.86;
-    }
-    .overlay .mini{
-      font-size: 13px;
-      opacity:.75;
-      margin-top: 10px;
-    }
+    .overlay h2{ margin: 4px 0 6px; font-size: 26px; letter-spacing:.3px; }
+    .overlay p{ margin: 0 0 12px; opacity:.86; }
+    .overlay .mini{ font-size: 13px; opacity:.75; margin-top: 10px; }
     .overlay button{
       border:1px solid rgba(255,255,255,.18);
       background: rgba(255,255,255,.10);
@@ -275,8 +260,8 @@
   // Utility
   // =========================
   const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
-  const lerp = (a, b, t) => a + (b - a) * t;
-  const rand = (a, b) => a + Math.random() * (b - a);
+  const lerp  = (a, b, t) => a + (b - a) * t;
+  const rand  = (a, b) => a + Math.random() * (b - a);
 
   // =========================
   // Elements
@@ -293,7 +278,6 @@
   const overlay = document.getElementById('overlay');
   const restartBtn = document.getElementById('restart');
   const deathLine = document.getElementById('deathLine');
-  const card = document.getElementById('card');
 
   const snowCtx = snowCanvas.getContext('2d', { alpha:true });
   const pileCtx = pileCanvas.getContext('2d', { alpha:true });
@@ -303,15 +287,16 @@
   // =========================
   function resize() {
     const dpr = Math.max(1, Math.min(2, window.devicePixelRatio || 1));
-    snowCanvas.width = Math.floor(window.innerWidth * dpr);
+    snowCanvas.width  = Math.floor(window.innerWidth  * dpr);
     snowCanvas.height = Math.floor(window.innerHeight * dpr);
-    snowCanvas.style.width = '100%';
+    snowCanvas.style.width  = '100%';
     snowCanvas.style.height = '100%';
     snowCtx.setTransform(dpr,0,0,dpr,0,0);
 
-    pileCanvas.width = Math.floor(window.innerWidth * dpr);
-    pileCanvas.height = Math.floor(Math.max(220, window.innerHeight * 0.28) * dpr);
-    pileCanvas.style.width = '100%';
+    const pileH = Math.max(220, window.innerHeight * 0.28);
+    pileCanvas.width  = Math.floor(window.innerWidth * dpr);
+    pileCanvas.height = Math.floor(pileH * dpr);
+    pileCanvas.style.width  = '100%';
     pileCanvas.style.height = '28vh';
     pileCtx.setTransform(dpr,0,0,dpr,0,0);
   }
@@ -322,7 +307,7 @@
   // Snow (flakes)
   // =========================
   const flakes = [];
-  function initFlakes(count=140){
+  function initFlakes(count=150){
     flakes.length = 0;
     for(let i=0;i<count;i++){
       flakes.push({
@@ -335,7 +320,7 @@
       });
     }
   }
-  initFlakes(150);
+  initFlakes(160);
 
   // =========================
   // Game State
@@ -343,12 +328,11 @@
   let score = 0;
   let combo = 0;
   let high = Number(localStorage.getItem('snowmans_high') || 0);
-  highEl.textContent = high;
 
   let alive = true;
 
   // Snow pile height (0..1 across the pile canvas height)
-  let pileLevel = 0.12; // start with some snow visible for “game feel”
+  let pileLevel = 0.12;
   let buriedAtScore = null;
 
   // The “temptation bar”
@@ -357,43 +341,32 @@
   let blizzardTimeLeft = 0;
   let blizzardDuration = 0;
   let blizzardElapsed = 0;
-  let blizzardFatigue = 0;      // 0..1
 
-  // For “not fair” design: blizzard becomes brutal quickly.
-  // Hidden strategy: don’t trigger it.
   const TUNING = {
-    // Pile growth baseline (normal)
     basePileRise: 0.020,        // per second
-    // Pile growth from snow intensity (normal)
-    snowPileCoupling: 0.00085,  // per flake speed effect
+    snowPileCoupling: 0.00085,
 
-    // Shovel power (normal)
     shovelBase: 0.065,
     shovelComboGain: 0.010,
 
-    // Combo behavior
-    comboDecayTime: 0.95,       // seconds without taps -> combo drops
+    comboDecayTime: 0.95,
     comboMax: 35,
 
-    // Blizzard bar: fills gradually (tempting but avoidable)
-    barFillPerTap: 0.042,       // 3-4 quick taps can trigger if you go nuts
-    barLeakPerSec: 0.06,        // drains slowly when you chill (this is the “life” metaphor)
+    // Bar: slightly easier to trigger (3 quick taps can do it)
+    barFillPerTap: 0.060,
+    barLeakPerSec: 0.050,
 
-    // Blizzard settings
     blizzardMin: 10,
     blizzardMax: 18,
 
-    // Blizzard intensity (VERY hard)
-    blizzardSnowMultiplier: 4.3,   // flakes speed multiplier
-    blizzardPileRiseMultiplier: 7.5, // pile rises MUCH faster
-    blizzardShakeMax: 1.0,         // shake strength factor
+    // Blizzard intensity
+    blizzardSnowMultiplier: 4.3,
+    blizzardPileRiseMultiplier: 7.5,
 
-    // Blizzard fatigue (shovel gets weaker as blizzard continues)
-    blizzardFatigueMaxLoss: 0.62,  // ends at 38% power (harsh)
-    blizzardFatigueCurve: 2.4,     // how quickly fatigue ramps (higher = harsher faster)
-
-    // “Fair-ish” mercy floor (still brutal, but not literally impossible)
-    shovelFloor: 0.28,             // never below 28% effective
+    // Shovel fatigue in blizzard (harder over time)
+    blizzardFatigueMaxLoss: 0.62,
+    blizzardFatigueCurve: 2.4,
+    shovelFloor: 0.28,
   };
 
   let lastTapTime = 0;
@@ -407,7 +380,7 @@
     d.className = 'poof';
     d.textContent = txt || poofs[Math.floor(Math.random()*poofs.length)];
     d.style.left = x + 'px';
-    d.style.top = y + 'px';
+    d.style.top  = y + 'px';
     d.style.fontSize = (12 + Math.random()*10) + 'px';
     document.body.appendChild(d);
     setTimeout(()=> d.remove(), 700);
@@ -420,8 +393,7 @@
     blizzardActive = true;
     blizzardTimeLeft = rand(TUNING.blizzardMin, TUNING.blizzardMax);
     blizzardDuration = blizzardTimeLeft;
-    blizzardElapsed = 0;
-    blizzardFatigue = 0;
+    blizzardElapsed  = 0;
 
     blzEl.textContent = "ACTIVE";
     hintEl.textContent = "Blizzard! 😈 Tap like your life depends on it.";
@@ -467,15 +439,20 @@
     blizzardTimeLeft = 0;
     blizzardDuration = 0;
     blizzardElapsed = 0;
-    blizzardFatigue = 0;
+
     blzEl.textContent = "idle";
     hintEl.textContent = "Tap the pile to shovel ❄️";
 
-    // reset flakes positions a bit
+    // reset flakes positions
     for(const f of flakes){
       f.x = rand(0, window.innerWidth);
       f.y = rand(-window.innerHeight, window.innerHeight);
     }
+
+    // HUD
+    scoreEl.textContent = "0";
+    comboEl.textContent = "x0";
+    barFillEl.style.width = "0%";
   }
   restartBtn.addEventListener('click', reset);
 
@@ -487,9 +464,9 @@
     const h = Math.max(220, window.innerHeight * 0.28);
     pileCtx.clearRect(0,0,w,h);
 
-    // Pile top curve based on pileLevel with waviness
     const topY = h - (pileLevel * h);
     const wave = 14 + pileLevel * 18;
+
     pileCtx.beginPath();
     pileCtx.moveTo(0, h);
 
@@ -504,11 +481,10 @@
     pileCtx.lineTo(w, h);
     pileCtx.closePath();
 
-    // Fill
     pileCtx.fillStyle = "rgba(245,247,255,0.92)";
     pileCtx.fill();
 
-    // Shadow / shading
+    // soft shadow
     pileCtx.save();
     pileCtx.globalAlpha = 0.18;
     pileCtx.fillStyle = "#000";
@@ -516,7 +492,7 @@
     pileCtx.fill();
     pileCtx.restore();
 
-    // highlight ridge
+    // ridge highlight
     pileCtx.save();
     pileCtx.globalAlpha = 0.20;
     pileCtx.strokeStyle = "rgba(255,255,255,0.95)";
@@ -535,16 +511,16 @@
   }
 
   // =========================
-  // Click / Tap to shovel
+  // Tap to shovel
   // =========================
   function onShovelTap(clientX, clientY){
     if(!alive) return;
 
-    const now = performance.now()/1000;
-    const dtTap = now - lastTapTime;
-    lastTapTime = now;
+    const nowS = performance.now()/1000;
+    const dtTap = nowS - lastTapTime;
+    lastTapTime = nowS;
 
-    // Combo: quick taps build combo; slow taps drop it
+    // Combo
     if(dtTap < 0.55) combo = clamp(combo + 1, 0, TUNING.comboMax);
     else combo = clamp(combo - 2, 0, TUNING.comboMax);
 
@@ -552,53 +528,43 @@
     const gain = 1 + Math.floor(combo * 0.6) + (blizzardActive ? 2 : 0);
     score += gain;
 
-    // Blizzard bar temptation:
-    // tapping builds the bar (chasing score = risk)
+    // Bar temptation
     blizzardBar = clamp(blizzardBar + TUNING.barFillPerTap * (1 + combo*0.02), 0, 1);
-    if(!blizzardActive && blizzardBar >= 1){
-      startBlizzard();
-    }
+    if(!blizzardActive && blizzardBar >= 1) startBlizzard();
 
     // Shovel power
     const base = TUNING.shovelBase + combo * TUNING.shovelComboGain;
 
-    // Blizzard fatigue makes shovel weaker as blizzard goes on (brutal later)
+    // Blizzard fatigue
     let fatigueMult = 1;
     if(blizzardActive){
-      // curve that ramps quickly (not fair)
       const p = clamp(blizzardElapsed / Math.max(0.001, blizzardDuration), 0, 1);
-      const curve = Math.pow(p, TUNING.blizzardFatigueCurve); // ramps harshly
-      blizzardFatigue = curve;
-      fatigueMult = 1 - (TUNING.blizzardFatigueMaxLoss * blizzardFatigue);
+      const curve = Math.pow(p, TUNING.blizzardFatigueCurve);
+      fatigueMult = 1 - (TUNING.blizzardFatigueMaxLoss * curve);
       fatigueMult = Math.max(TUNING.shovelFloor, fatigueMult);
     }
 
-    // Remove snow from pile
     let remove = base * (blizzardActive ? 0.95 : 1.05) * fatigueMult;
-
-    // Tiny randomness so it feels physical
     remove *= rand(0.92, 1.12);
 
     pileLevel = clamp(pileLevel - remove, 0, 1);
 
-    // Poof text
+    // Poof
     spawnPoof(clientX, clientY, (combo >= 8 && Math.random()<0.55) ? "POOF!" : null);
 
-    // Update HUD immediately
-    scoreEl.textContent = score;
-    comboEl.textContent = "x" + combo;
+    // HUD update
+    scoreEl.textContent = String(score);
+    comboEl.textContent = "x" + Math.floor(combo);
 
-    // High score
+    // High score (FIXED)
     if(score > high){
       high = score;
       localStorage.setItem('snowmans_high', String(high));
-      highEl.textContent = Your Highest Score;
+      highEl.textContent = String(high);
     }
   }
 
-  // Make pile clickable
   pileCanvas.addEventListener('pointerdown', (e) => {
-    // only shovel when tapping near the bottom region (pile canvas)
     onShovelTap(e.clientX, e.clientY);
   }, { passive:true });
 
@@ -611,47 +577,39 @@
     const dt = (now - last) / 1000;
     last = now;
 
-    // Update HUD bar
+    // Bar display
     barFillEl.style.width = (blizzardBar * 100).toFixed(1) + "%";
 
     // Blizzard timers + shake
     if(blizzardActive){
       blizzardTimeLeft -= dt;
-      blizzardElapsed += dt;
+      blizzardElapsed  += dt;
 
-      // Shake ramps up as blizzard continues
       const prog = clamp(blizzardElapsed / Math.max(0.001, blizzardDuration), 0, 1);
-      const shakeFactor = prog; // stronger later
-      if(shakeFactor > 0.12) document.body.classList.add('shake');
+      if(prog > 0.10) document.body.classList.add('shake');
       else document.body.classList.remove('shake');
 
-      blzEl.textContent = "ACTIVE " + Math.ceil(blizzardTimeLeft) + "s";
+      blzEl.textContent = "ACTIVE " + Math.max(0, Math.ceil(blizzardTimeLeft)) + "s";
 
-      if(blizzardTimeLeft <= 0){
-        endBlizzard();
-      }
+      if(blizzardTimeLeft <= 0) endBlizzard();
     } else {
-      // Bar drains when you're not going crazy (metaphor reward)
       blizzardBar = clamp(blizzardBar - TUNING.barLeakPerSec * dt, 0, 1);
-
-      // small hint changes based on bar (temptation)
       if(blizzardBar > 0.85) blzEl.textContent = "danger";
       else if(blizzardBar > 0.55) blzEl.textContent = "building";
       else blzEl.textContent = "idle";
     }
 
-    // Combo decay if you stop tapping
+    // Combo decay
     if(alive){
       const t = performance.now()/1000;
       const since = t - lastTapTime;
       if(since > TUNING.comboDecayTime && combo > 0){
-        // decay smoothly
         combo = clamp(combo - dt * 3.2, 0, TUNING.comboMax);
         comboEl.textContent = "x" + Math.floor(combo);
       }
     }
 
-    // Snow physics
+    // Snow rendering (ALWAYS runs from start)
     const snowSpeedMult = blizzardActive ? TUNING.blizzardSnowMultiplier : 1.0;
     snowCtx.clearRect(0,0,window.innerWidth, window.innerHeight);
 
@@ -659,7 +617,6 @@
       f.y += f.s * snowSpeedMult * dt;
       f.x += f.d * dt * (blizzardActive ? 3.2 : 1.0);
 
-      // wrap
       if(f.y > window.innerHeight + 12){
         f.y = rand(-80, -12);
         f.x = rand(0, window.innerWidth);
@@ -677,42 +634,34 @@
 
     // Pile rise
     if(alive){
-      // base + coupling with intensity (more intense snow makes pile rise faster)
       let rise = TUNING.basePileRise;
 
-      // if blizzard, pile rise becomes “oh no”
       if(blizzardActive){
-        // also ramps over time so it catches you off guard
         const prog = clamp(blizzardElapsed / Math.max(0.001, blizzardDuration), 0, 1);
         const ramp = lerp(1.5, TUNING.blizzardPileRiseMultiplier, prog);
         rise *= ramp;
       }
 
-      // Couple to snow intensity roughly
       const intensity = blizzardActive ? 1.0 : 0.55;
       rise += (TUNING.snowPileCoupling * intensity) * dt * 60;
 
       pileLevel = clamp(pileLevel + rise * dt, 0, 1);
+
       if(pileLevel >= 0.985){
-        die(blizzardActive
-          ? "The blizzard buried you. ☃️."
-          : "You got buried☃️.");
+        die(blizzardActive ? "The blizzard buried you. ☃️" : "You got buried. ☃️");
       }
     }
 
-    // Render pile
     drawPile();
-
     requestAnimationFrame(tick);
   }
   requestAnimationFrame(tick);
 
-  // init HUD
-  scoreEl.textContent = score;
+  // Init HUD
+  scoreEl.textContent = "0";
   comboEl.textContent = "x0";
   buriedEl.textContent = "—";
-  highEl.textContent = high;
-
+  highEl.textContent = String(high);
 })();
 </script>
 </body>

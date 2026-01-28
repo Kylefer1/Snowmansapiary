@@ -1,17 +1,18 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Snowman’s Apiary</title>
 
 <style>
 :root{
   --bg1:#0a1320;
+  --card:rgba(255,255,255,.06);
+  --stroke:rgba(255,255,255,.12);
   --text:#f3f6ff;
   --muted:rgba(243,246,255,.82);
-  --card:rgba(255,255,255,.08);
-  --stroke:rgba(255,255,255,.14);
+  --shadow:0 18px 55px rgba(0,0,0,.45);
   --radius:22px;
 }
 *{box-sizing:border-box}
@@ -25,10 +26,10 @@ body{
   align-items:center;
   justify-content:center;
   overflow:hidden;
-  padding:16px;
+  padding:24px 12px;
 }
 
-/* Screen shake */
+/* Shake */
 .shake{animation:shake .18s infinite linear}
 @keyframes shake{
   0%{transform:translate(0,0)}
@@ -41,12 +42,14 @@ body{
 /* Card */
 .card{
   width:min(720px,92vw);
-  background:linear-gradient(180deg,rgba(255,255,255,.1),rgba(255,255,255,.04));
+  background:linear-gradient(180deg,rgba(255,255,255,.08),rgba(255,255,255,.04));
   border:1px solid var(--stroke);
   border-radius:var(--radius);
+  box-shadow:var(--shadow);
   padding:18px;
   text-align:center;
   backdrop-filter:blur(10px);
+  position:relative;
   z-index:6;
 }
 .card img{
@@ -54,18 +57,16 @@ body{
   max-width:520px;
   border-radius:16px;
   border:1px solid rgba(255,255,255,.1);
+  margin-bottom:12px;
 }
-h1{
-  margin:10px 0 6px;
-  font-size:clamp(32px,6vw,52px);
-}
-.sub{font-size:clamp(16px,3vw,22px);color:var(--muted)}
+h1{margin:6px 0;font-size:clamp(32px,6vw,52px)}
+.sub{color:var(--muted)}
 .status{opacity:.75;margin-bottom:12px}
 a.btn{
   display:inline-block;
   padding:12px 18px;
   border-radius:14px;
-  background:rgba(255,255,255,.12);
+  background:rgba(255,255,255,.1);
   color:white;
   text-decoration:none;
   font-weight:800;
@@ -94,13 +95,9 @@ a.btn{
   border-radius:999px;
   overflow:hidden;
 }
-.fill{
-  height:100%;
-  width:0%;
-  background:white;
-}
+.barFill{height:100%;width:0%;background:white}
 
-/* Snow canvases */
+/* Canvases */
 #snow,#pile{
   position:fixed;
   left:0;
@@ -119,7 +116,7 @@ a.btn{
   pointer-events:auto;
 }
 
-/* Poof text */
+/* Poof */
 .poof{
   position:fixed;
   font-weight:900;
@@ -133,7 +130,7 @@ a.btn{
   to{opacity:0;transform:translate(-50%,-100%) scale(1.2)}
 }
 
-/* Death overlay */
+/* Overlay */
 .overlay{
   position:fixed;
   inset:0;
@@ -148,8 +145,8 @@ a.btn{
   background:rgba(15,25,40,.9);
   border-radius:18px;
   padding:18px;
-  text-align:center;
   border:1px solid rgba(255,255,255,.2);
+  text-align:center;
 }
 .panel button{
   margin-top:10px;
@@ -171,11 +168,11 @@ a.btn{
   <div class="row"><span>Score</span><span id="score">0</span></div>
   <div class="row"><span>Combo</span><span id="combo">x0</span></div>
   <div class="row"><span>Blizzard</span><span id="blz">idle</span></div>
-  <div class="bar"><div class="fill" id="bar"></div></div>
+  <div class="bar"><div class="barFill" id="barFill"></div></div>
 </div>
 
 <div class="card">
-  <img src="logo.png" alt="Snowman’s Apiary">
+  <img src="logo.png" alt="Snowman’s Apiary logo">
   <h1>Snowman’s Apiary</h1>
   <div class="sub">Local honey & apiary goods.</div>
   <div class="status">Currently out of stock — expecting more honey by summer.</div>
@@ -184,13 +181,14 @@ a.btn{
 
 <div class="overlay" id="overlay">
   <div class="panel">
-    <h2>🥶 Buried.</h2>
+    <h2>🥶 You got buried.</h2>
     <p>The blizzard always wins.</p>
     <button onclick="location.reload()">Try again</button>
   </div>
 </div>
 
 <script>
+(() => {
 const snow=document.getElementById('snow');
 const pile=document.getElementById('pile');
 const sctx=snow.getContext('2d');
@@ -202,7 +200,8 @@ function resize(){
 }
 resize(); addEventListener('resize',resize);
 
-let flakes=[...Array(160)].map(()=>({
+// Snowflakes
+const flakes=[...Array(160)].map(()=>({
   x:Math.random()*innerWidth,
   y:Math.random()*innerHeight,
   r:1+Math.random()*3,
@@ -210,33 +209,54 @@ let flakes=[...Array(160)].map(()=>({
   d:-15+Math.random()*30
 }));
 
-let pileLevel=.12;
 let score=0,combo=0;
+let pileLevel=.12;
 let bar=0;
+let alive=true;
+
 let blizzard=false;
 let blzTime=0,blzDur=0;
+
 let timeAlive=0;
 
+// ===== DIFFICULTY TUNING =====
 const T={
-  pileRise:.02,
-  pileBlizzard:8,
-  shovelStart:.045,
-  shovelDecay:.0035,
-  shovelMin:.02,
-  comboGain:.008,
-  barTap:.06,
-  barLeak:.05
+  pileRise:0.020,
+  pileBlizzard:8.5,
+
+  shovelStart:0.040,        // starts weak
+  shovelDecay:0.0045,       // permanent decay
+  shovelMin:0.018,          // never zero
+  comboGain:0.007,
+
+  barTap:0.060,
+  barLeak:0.050
 };
 
 pile.addEventListener('pointerdown',e=>{
-  if(!blizzard && bar>=1) startBlizzard();
+  if(!alive) return;
+
   combo++;
   score+=1+Math.floor(combo*.5);
+
   bar=Math.min(1,bar+T.barTap);
-  const fatigue=Math.max(T.shovelMin,
-    (T.shovelStart-timeAlive*T.shovelDecay)+(combo*T.comboGain)
-  );
-  pileLevel=Math.max(0,pileLevel-fatigue*(blizzard?.6:1));
+  if(!blizzard && bar>=1) startBlizzard();
+
+  // GLOBAL fatigue
+  let shovelPower=
+    T.shovelStart
+    - timeAlive*T.shovelDecay
+    + combo*T.comboGain;
+
+  shovelPower=Math.max(T.shovelMin,shovelPower);
+
+  // Blizzard penalty (STACKING)
+  if(blizzard){
+    shovelPower*=0.55;
+  }
+
+  pileLevel=Math.max(0,pileLevel-shovelPower);
+
   poof(e.clientX,e.clientY);
 });
 
@@ -250,7 +270,8 @@ function poof(x,y){
   const p=document.createElement('div');
   p.className='poof';
   p.textContent=Math.random()<.5?'POOF':'POP';
-  p.style.left=x+'px'; p.style.top=y+'px';
+  p.style.left=x+'px';
+  p.style.top=y+'px';
   document.body.appendChild(p);
   setTimeout(()=>p.remove(),600);
 }
@@ -258,9 +279,11 @@ function poof(x,y){
 let last=performance.now();
 function loop(){
   const now=performance.now();
-  const dt=(now-last)/1000; last=now;
-  timeAlive+=dt;
+  const dt=(now-last)/1000;
+  last=now;
+  if(alive) timeAlive+=dt;
 
+  // Snow
   sctx.clearRect(0,0,snow.width,snow.height);
   flakes.forEach(f=>{
     f.y+=f.s*(blizzard?4:1)*dt;
@@ -268,48 +291,57 @@ function loop(){
     if(f.y>innerHeight){f.y=-10;f.x=Math.random()*innerWidth}
     sctx.beginPath();
     sctx.arc(f.x,f.y,f.r,0,Math.PI*2);
-    sctx.fillStyle='white'; sctx.fill();
+    sctx.fillStyle='white';
+    sctx.fill();
   });
 
-  let rise=T.pileRise*(blizzard?T.pileBlizzard:1);
-  pileLevel+=rise*dt;
-  if(pileLevel>=.99){
-    document.getElementById('overlay').style.display='flex';
-    return;
-  }
-
+  // Blizzard logic
   if(blizzard){
     blzTime-=dt;
     document.body.classList.add('shake');
-    if(blzTime<=0){blizzard=false;bar=0;document.body.classList.remove('shake')}
+    if(blzTime<=0){
+      blizzard=false;
+      bar=0;
+      document.body.classList.remove('shake');
+    }
   }else{
     bar=Math.max(0,bar-T.barLeak*dt);
   }
 
+  // Pile rise
+  let rise=T.pileRise*(blizzard?T.pileBlizzard:1);
+  pileLevel+=rise*dt;
+
+  if(pileLevel>=.99){
+    alive=false;
+    document.getElementById('overlay').style.display='flex';
+    return;
+  }
+
+  // Draw pile
   pctx.clearRect(0,0,pile.width,pile.height);
+  const h=pile.height;
+  const y=h-(h*pileLevel);
   pctx.beginPath();
-  pctx.moveTo(0,pile.height);
-  const y=pile.height-(pile.height*pileLevel);
+  pctx.moveTo(0,h);
   for(let i=0;i<=10;i++){
     const x=(i/10)*pile.width;
     pctx.lineTo(x,y+Math.sin(i+timeAlive*2)*12);
   }
-  pctx.lineTo(pile.width,pile.height);
+  pctx.lineTo(pile.width,h);
   pctx.fillStyle='rgba(245,247,255,.92)';
   pctx.fill();
 
-  scoreEl.textContent=score;
-  comboEl.textContent='x'+combo;
-  blzEl.textContent=blizzard?'ACTIVE':'idle';
-  barEl.style.width=(bar*100)+'%';
+  // HUD
+  document.getElementById('score').textContent=score;
+  document.getElementById('combo').textContent='x'+combo;
+  document.getElementById('blz').textContent=blizzard?'ACTIVE':'idle';
+  document.getElementById('barFill').style.width=(bar*100)+'%';
 
   requestAnimationFrame(loop);
 }
-const scoreEl=document.getElementById('score');
-const comboEl=document.getElementById('combo');
-const blzEl=document.getElementById('blz');
-const barEl=document.getElementById('bar');
 loop();
+})();
 </script>
 </body>
 </html>

@@ -64,6 +64,15 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
 #stage.game-hidden #pile,#stage.game-hidden #gamePanel{display:none;}
 .reduced-motion .poof{display:none;}
 .reduced-motion #gamePanel{animation:none;}
+@media(min-width:700px){
+  .apiaryVideo{max-height:34vh;}
+  .businessInfo{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,3fr);gap:20px;align-items:center;}
+  .logoWrap{margin:0;}
+  .logo{max-height:210px;}
+  h1{font-size:36px;}
+  .sub{font-size:16px;}
+  .status{font-size:16px;}
+}
 @media(max-width:480px){#ui{padding:12px;} .card{padding:14px 12px;} #hud{gap:4px 6px;left:8px;right:8px;font-size:12px;} .row .label{font-size:11px;} #shovelLabel{font-size:13px;padding:9px 14px;}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;} .poof{display:none;}}
 
@@ -84,16 +93,20 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
           Your browser does not support embedded video. <a href="snowmans-apiary.mp4">Watch the video</a>.
         </video>
 
+        <div class="businessInfo">
         <div class="logoWrap">
           <img class="logo" src="logo.png" width="2872" height="1904" alt="Snowman’s Apiary logo" />
         </div>
 
+        <div class="businessDetails">
         <h1>Snowman’s Apiary</h1>
         <p class="sub">Local honey &amp; apiary goods.</p>
         <p class="status">out of stock, see you next year!</p>
 
         <a class="btn" href="mailto:snowmansapiary@yahoo.com?subject=Snowman%27s%20Apiary%20Inquiry">Email Snowman’s Apiary</a>
         <label class="motionControl"><input type="checkbox" id="reduceMotion" /> Reduce snow animation and screen shake</label>
+        </div>
+        </div>
       </div>
     </div>
 
@@ -303,4 +316,3 @@ resize();initFlakes();reset(false);requestAnimationFrame(tick);
   </script>
 </body>
 </html>
-

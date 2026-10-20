@@ -1,0 +1,13 @@
+"use strict";
+(()=>{
+const facts=[{"title": "A tiny electrical world", "text": "Honey bees accumulate electric charge as they fly. Experiments show that electric fields can move their antennae and that bees can learn to associate those signals with a reward."}, {"title": "Flowers have electrical cues", "text": "Bumblebees can learn differences in floral electric fields. A visit from a charged bee changes those cues—one more piece of information alongside a flower’s color, scent and shape."}, {"title": "Hairs that sense a field", "text": "In bumblebees, tiny body hairs move in response to weak electric fields. Researchers found these hairs can help turn an electrical cue into a sensory signal."}, {"title": "A different kind of family tree", "text": "A honey bee queen usually produces daughters from fertilized eggs and sons from unfertilized eggs. Female bees have two chromosome sets; male drones have one."}, {"title": "One queen, many fathers", "text": "A queen mates with multiple drones, so workers in the same honey bee colony can have different fathers. A hive is a family with a surprisingly complex genetic story."}, {"title": "Royal beginnings", "text": "Female honey bee larvae can become queens or workers. The rich, sustained royal-jelly diet given to queen-destined larvae helps shape that remarkable difference."}, {"title": "A hive with air conditioning", "text": "Honey bees use water and wing-fanning to help cool their nest. A dependable water supply matters during hot weather."}, {"title": "Winter is not a long nap", "text": "Honey bees form a heat-producing winter cluster and use stored food as fuel. The colony needs access to that food throughout cold weather."}, {"title": "Nectar and pollen do different jobs", "text": "Nectar provides carbohydrate energy, while pollen supplies nutrients for growing bees. Colony nutrition takes more than honey alone."}, {"title": "Honey bees are part of a bigger story", "text": "The western honey bee is not native to the Americas. Native bees were pollinating here long before honey bee colonies arrived with European colonists."}];
+const banner=document.querySelector('.factBar');if(!banner)return;
+const title=banner.querySelector('.factTitle'),body=banner.querySelector('.factText'),source=banner.querySelector('.factSource'),next=banner.querySelector('.factNext');
+let current=-1;
+function show(){
+  const options=facts.map((_,i)=>i).filter(i=>i!==current);
+  current=options[Math.floor(Math.random()*options.length)];
+  const fact=facts[current];title.textContent=fact.title;body.textContent=fact.text;source.textContent='Explore the beekeeping guide ↗';source.href='beekeeping.html';
+}
+next.hidden=false;next.addEventListener('click',show);show();
+})();

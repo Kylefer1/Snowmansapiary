@@ -64,3 +64,11 @@ details p{color:var(--muted);margin:12px 0 0;}
 .homeLinks{display:flex;justify-content:center;gap:14px;flex-wrap:wrap;font-size:13px;margin:14px 0 0;}
 @media(min-width:700px){#ui .apiaryVideo{max-height:28vh;}}
 @media(max-width:650px){.contentShell{padding:12px;}.siteNav{padding:10px;}.navBrand{font-size:15px;}.navPlace{font-size:11px;}.navHeading{gap:8px;}.navLinks{gap:3px;}.navLinks a{font-size:12px;padding:7px 4px;}.aboutGrid,.contactGrid{grid-template-columns:1fr;gap:22px;}.storyAside{max-width:400px;}.pageCard{padding:24px 18px;}.callout,.contactBox,.stockNotice{padding:18px;}th,td{padding:12px 10px;font-size:14px;}.contactGrid{gap:0;}}
+
+/* Five destinations with comfortable wrapping on small screens. */
+.navLinks{grid-template-columns:repeat(5,minmax(0,1fr));}
+.navLinks a[aria-current="location"]{border-color:#466689;}
+@media(max-width:480px){.navLinks{grid-template-columns:repeat(3,minmax(0,1fr));}}
+
+.navLinks{grid-template-columns:repeat(6,minmax(0,1fr));}
+@media(max-width:650px){.navLinks{grid-template-columns:repeat(3,minmax(0,1fr));}}

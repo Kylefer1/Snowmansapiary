@@ -104,12 +104,14 @@ function draw(){
  ctx.restore();
 }
 function chargeValue(){return charging?clamp((performance.now()-chargeStart)/950,0,1):0;}
+function updateCharge(){const percent=Math.round(chargeValue()*100);$('chargeFill').style.width=percent+'%';$('charge').setAttribute('aria-valuenow',String(percent));$('chargeLabel').textContent=percent===100?'FULLY PACKED':'PACKING SNOW · '+percent+'%';}
+function beginCharge(id){charging=true;chargeStart=performance.now();pointerId=id;$('charge').hidden=false;updateCharge();}
 function cancelCharge(){charging=false;pointerId=null;$('charge').hidden=true;pointerInput?.reset();}
 function pointerPoint(e){const r=canvas.getBoundingClientRect();return {x:clamp((e.clientX-r.left-offsetX)/scale,0,1100),y:clamp((e.clientY-r.top-offsetY)/scale,0,600)};}
 function fire(x,y,charge){
  const near=game.enemies.filter(e=>e.hp>0).reduce((a,e)=>!a||Math.hypot(e.x-x,e.y-y)<Math.hypot(a.x-x,a.y-y)?e:a,null);
  if(near&&Math.hypot(near.x-x,near.y-y)<70){const flight=.18+Math.hypot(near.x-99,near.y-345)/2200;x=near.x-near.speed*flight*(game.slowTime>0?.42:1);y=near.y;}
- if(game.shoot(x,y,charge)){throwFlash=.18;canvas.dataset.shotsThrown=String(++shotsThrown);}
+ if(game.shoot(x,y,charge)){throwFlash=.18;canvas.dataset.shotsThrown=String(++shotsThrown);canvas.dataset.lastShotCharge=String(charge);}
 }
 pointerInput=ApiaryInput.bind({canvas,
  begin(e){
@@ -117,14 +119,14 @@ pointerInput=ApiaryInput.bind({canvas,
   aim=pointerPoint(e);const labelSize=Math.max(20,10/scale);
   const hive=game.hives.find(h=>h.hp>0&&game.miteCount(h)>0&&(Math.abs(h.x-aim.x)<70&&Math.abs(h.y-aim.y)<64||aim.x>=h.x+61&&aim.x<=h.x+61+labelSize*5.6&&aim.y>=h.y+14&&aim.y<=h.y+labelSize+26));
   if(hive){game.clearMites(hive.id);updateHud();return false;}
-  canvas.focus({preventScroll:true});charging=true;chargeStart=performance.now();pointerId=e.pointerType==='touch'||e.identifier!==undefined?'touch':'pointer';$('charge').hidden=false;return true;
+  canvas.focus({preventScroll:true});beginCharge(e.pointerType==='touch'||e.identifier!==undefined?'touch':'pointer');return true;
  },
  move(e){aim=pointerPoint(e);},
  release(e,duration){if(!charging)return;aim=pointerPoint(e);cancelCharge();fire(aim.x,aim.y,clamp(duration/950,0,1));},
  cancel:cancelCharge
 });
 canvas.addEventListener('keydown',e=>{
- if(e.code==='Space'){e.preventDefault();if(e.repeat||charging||game.paused||game.state!=='wave')return;charging=true;chargeStart=performance.now();pointerId='keyboard';$('charge').hidden=false;}
+ if(e.code==='Space'){e.preventDefault();if(e.repeat||charging||game.paused||game.state!=='wave')return;beginCharge('keyboard');}
  if(['Digit1','Digit2','Digit3'].includes(e.code)){e.preventDefault();cancelCharge();game.clearMites(Number(e.code.slice(-1))-1);updateHud();}
  if(e.code==='ArrowLeft'||e.code==='ArrowRight'){e.preventDefault();const alive=[...game.enemies].sort((a,b)=>a.x-b.x);keyboardIndex=clamp(keyboardIndex+(e.code==='ArrowRight'?1:-1),0,Math.max(0,alive.length-1));const target=alive[keyboardIndex];if(target)aim={x:target.x,y:target.y};}
  if(e.code==='KeyP'){e.preventDefault();game.togglePause();cancelCharge();updateHud();}
@@ -229,7 +231,7 @@ function updateHud(){
 }
 function tick(now){
  const dt=last?clamp((now-last)/1000,0,.1):0;last=now;
- if(!document.hidden&&artReady){if(!game.paused){if(!reduced)visualTime+=dt;throwFlash=Math.max(0,throwFlash-dt);}game.step(dt);updateHud();if(charging)$('chargeFill').style.width=chargeValue()*100+'%';draw();}
+ if(!document.hidden&&artReady){if(!game.paused){if(!reduced)visualTime+=dt;throwFlash=Math.max(0,throwFlash-dt);}game.step(dt);updateHud();if(charging)updateCharge();draw();}
  requestAnimationFrame(tick);
 }
 Promise.allSettled(Object.entries(names).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();images[key]=img;img.onload=resolve;img.onerror=reject;img.src='apiary-art/'+file+'?v=3';}))).then(results=>{artReady=true;$('loading').hidden=true;if(results.some(r=>r.status==='rejected'))game.message='Some artwork could not load. You can still play with simple shapes.';resize();updateHud();});

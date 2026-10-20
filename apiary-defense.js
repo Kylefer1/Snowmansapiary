@@ -5,7 +5,7 @@ const {Game,TYPES,UPGRADES,SPECIALTIES,LIMITS,clamp}=ApiaryDefense;
 const $=id=>document.getElementById(id),canvas=$('battlefield'),ctx=canvas.getContext('2d');
 if(!ctx){$('loading').textContent='Canvas is unavailable in this browser. Please try a current browser.';return;}
 const game=new Game();
-let modeChosen=false;
+let modeChosen=false,pointerInput=null,shotsThrown=0;
 function loadBest(){try{const n=Number(localStorage.getItem("snowmans_apiary_defense_v2_best_"+game.mode));return Number.isSafeInteger(n)&&n>0?n:0;}catch{return 0;}}
 const images={},names={landscape:'landscape.svg',snowman:'snowman.svg',hive:'hive.svg',bee:'guard-bee.svg',moth:'wax-moth.svg',beetle:'hive-beetle.svg',hornet:'hornet.svg',worm:'waxworm.svg',mouse:'mouse.svg',wasp:'wasp.svg',mite:'varroa.svg',vaporizer:'vaporizer.svg'};
 let scale=1,offsetX=0,offsetY=0,viewW=1100,viewH=600,last=0,artReady=false,visualTime=0,lastHud='',dialogPause=false,charging=false,chargeStart=0,pointerId=null,aim={x:700,y:330},keyboardIndex=0,throwFlash=0,endShown=false,best=0;
@@ -104,17 +104,25 @@ function draw(){
  ctx.restore();
 }
 function chargeValue(){return charging?clamp((performance.now()-chargeStart)/950,0,1):0;}
-function cancelCharge(){charging=false;pointerId=null;$('charge').hidden=true;}
+function cancelCharge(){charging=false;pointerId=null;$('charge').hidden=true;pointerInput?.reset();}
 function pointerPoint(e){const r=canvas.getBoundingClientRect();return {x:clamp((e.clientX-r.left-offsetX)/scale,0,1100),y:clamp((e.clientY-r.top-offsetY)/scale,0,600)};}
 function fire(x,y,charge){
  const near=game.enemies.filter(e=>e.hp>0).reduce((a,e)=>!a||Math.hypot(e.x-x,e.y-y)<Math.hypot(a.x-x,a.y-y)?e:a,null);
  if(near&&Math.hypot(near.x-x,near.y-y)<70){const flight=.18+Math.hypot(near.x-99,near.y-345)/2200;x=near.x-near.speed*flight*(game.slowTime>0?.42:1);y=near.y;}
- if(game.shoot(x,y,charge))throwFlash=.18;
+ if(game.shoot(x,y,charge)){throwFlash=.18;canvas.dataset.shotsThrown=String(++shotsThrown);}
 }
-canvas.addEventListener('pointerdown',e=>{if(e.button!==0||game.state!=='wave'||game.paused||charging)return;e.preventDefault();canvas.focus({preventScroll:true});aim=pointerPoint(e);const labelSize=Math.max(20,10/scale);const hive=game.hives.find(h=>h.hp>0&&(Math.abs(h.x-aim.x)<70&&Math.abs(h.y-aim.y)<64||game.miteCount(h)&&aim.x>=h.x+61&&aim.x<=h.x+61+labelSize*5.6&&aim.y>=h.y+14&&aim.y<=h.y+labelSize+26));if(hive){game.clearMites(hive.id);updateHud();return;}charging=true;chargeStart=performance.now();pointerId=e.pointerId;canvas.setPointerCapture(e.pointerId);$('charge').hidden=false;});
-canvas.addEventListener('pointermove',e=>{if(pointerId!==null&&pointerId!==e.pointerId)return;aim=pointerPoint(e);});
-canvas.addEventListener('pointerup',e=>{if(!charging||pointerId!==e.pointerId)return;aim=pointerPoint(e);const value=chargeValue();cancelCharge();if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);fire(aim.x,aim.y,value);});
-canvas.addEventListener('pointercancel',cancelCharge);canvas.addEventListener('lostpointercapture',cancelCharge);
+pointerInput=ApiaryInput.bind({canvas,
+ begin(e){
+  if(game.state!=='wave'||game.paused||charging||game.brush)return false;
+  aim=pointerPoint(e);const labelSize=Math.max(20,10/scale);
+  const hive=game.hives.find(h=>h.hp>0&&game.miteCount(h)>0&&(Math.abs(h.x-aim.x)<70&&Math.abs(h.y-aim.y)<64||aim.x>=h.x+61&&aim.x<=h.x+61+labelSize*5.6&&aim.y>=h.y+14&&aim.y<=h.y+labelSize+26));
+  if(hive){game.clearMites(hive.id);updateHud();return false;}
+  canvas.focus({preventScroll:true});charging=true;chargeStart=performance.now();pointerId=e.pointerType==='touch'||e.identifier!==undefined?'touch':'pointer';$('charge').hidden=false;return true;
+ },
+ move(e){aim=pointerPoint(e);},
+ release(e,duration){if(!charging)return;aim=pointerPoint(e);cancelCharge();fire(aim.x,aim.y,clamp(duration/950,0,1));},
+ cancel:cancelCharge
+});
 canvas.addEventListener('keydown',e=>{
  if(e.code==='Space'){e.preventDefault();if(e.repeat||charging||game.paused||game.state!=='wave')return;charging=true;chargeStart=performance.now();pointerId='keyboard';$('charge').hidden=false;}
  if(['Digit1','Digit2','Digit3'].includes(e.code)){e.preventDefault();cancelCharge();game.clearMites(Number(e.code.slice(-1))-1);updateHud();}
@@ -124,7 +132,7 @@ canvas.addEventListener('keydown',e=>{
 canvas.addEventListener('keyup',e=>{if(e.code==='Space'&&pointerId==='keyboard'){e.preventDefault();const value=chargeValue();cancelCharge();const alive=[...game.enemies].sort((a,b)=>a.x-b.x),target=alive[Math.min(keyboardIndex,alive.length-1)];if(target)aim={x:target.x,y:target.y};fire(aim.x,aim.y,value);}});
 document.querySelectorAll('[data-hive]').forEach(b=>b.addEventListener('click',()=>{cancelCharge();game.clearMites(Number(b.dataset.hive));updateHud();}));
 document.addEventListener('visibilitychange',()=>{last=performance.now();cancelCharge();if(document.hidden&&game.state==='wave'&&!game.paused){game.paused=true;game.message='Paused while you were away. Resume when you’re ready.';updateHud();}});
-window.addEventListener('blur',cancelCharge);
+window.addEventListener('blur',()=>{if(pointerId!=='touch')cancelCharge();});
 $('nextWave').addEventListener('click',()=>{if(game.startWave()){canvas.focus({preventScroll:true});updateHud();}});
 $('pauseButton').addEventListener('click',()=>{game.togglePause();cancelCharge();updateHud();});
 for(const id of ['smokeButton','fieldSmoke'])$(id).addEventListener('click',()=>{cancelCharge();game.smoke();updateHud();});

@@ -16,7 +16,7 @@ const UPGRADES={
  power:{title:'Packed snow',desc:'Make every snowball hit harder. Hold a shot to break through beetle armor.',base:45,growth:1.9,max:5},
  splash:{title:'Powder burst',desc:'Hit a wider area with each level. Fully upgraded, snowballs have double the splash reach.',base:55,growth:1.9,max:3},
  bees:{title:'Guard bee',desc:'Recruit one real flying defender, up to 20. Every bee attacks and returns independently.',base:38,growth:1.19,max:20},
- training:{title:'Bee training',desc:'No level limit. Your guard bees hit harder and recover faster with each level. Later speed gains become more gradual.',base:65,growth:2,max:Infinity},
+ training:{title:'Bee training',desc:'No level limit. Increase guard damage and shorten cooldown to a 1-second minimum. After that, further levels increase damage only.',base:65,growth:2,max:Infinity},
  walls:{title:'Hive reinforcement',desc:'All hives gain 25 maximum health and 25 repairs. Destroyed hives stay lost.',base:55,growth:1.9,max:4},
  vaporizer:{title:'Oxalic acid vaporizer',desc:'Reduce damage from visible Varroa by 35% per level. It does not remove every mite.',base:65,growth:1.7,max:2},
  workers:{title:'Worker bees',desc:'Recruit up to 30. Slowly repair the weakest surviving hive during battle. More workers repair it faster.',base:50,growth:1.3,max:30},
@@ -25,7 +25,7 @@ const UPGRADES={
 };
 const SPECIALTIES={
  snow:{title:'Snowball specialist',desc:'+30% snowball damage and 15% shorter throwing cooldown. Choose one specialty per run.'},
- swarm:{title:'Swarm commander',desc:'Guard bees recover 25% faster. Choose one specialty per run.'},
+ swarm:{title:'Swarm commander',desc:'Guard bees have 25% shorter cooldowns, with a 1-second minimum. Choose one specialty per run.'},
  care:{title:'Apiary steward',desc:'Hives take 20% less damage; brushing is 35% faster. Choose one specialty per run.'}
 };
 class Game{
@@ -109,7 +109,7 @@ class Game{
  togglePause(){if(!['wave','ready','between'].includes(this.state))return false;this.paused=!this.paused;return this.paused;}
  varroaRate(h){const base=(.13+this.wave*.003)*(1-this.upgrades.vaporizer*.35)*(this.specialty==='care'?.8:1);return h?this.miteCount(h)*base:base;}
  beeDamage(){return 18+this.upgrades.training*10;}
- beeCooldown(){const level=this.upgrades.training,base=level<=3?3.6-level*.45:2.25/(1+(level-3)*.12);return base*(this.specialty==='swarm'?.75:1);}
+ beeCooldown(){const level=this.upgrades.training,base=level<=3?3.6-level*.45:2.25/(1+(level-3)*.12);return Math.max(1,base*(this.specialty==='swarm'?.75:1));}
  hit(e,damage,kind='snow',charge=0){
   if(e.hp<=0)return;const armored=TYPES[e.type].armored;
   if(armored)damage*=kind==='bee'?.45:charge>=.6?1:.65;

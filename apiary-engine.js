@@ -92,6 +92,7 @@ class Game{
   this.enemies.push(e);this.discovered.add(type);return e;
  }
  nearestEnemy(){return this.enemies.reduce((a,e)=>e.hp>0&&(!a||e.x<a.x)?e:a,null);}
+ nearestEnemyTo(point){let nearest=null,distance=Infinity;for(const e of this.enemies){if(e.hp<=0)continue;const d=Math.hypot(e.x-point.x,e.y-point.y);if(d<distance){nearest=e;distance=d;}}return nearest;}
  shoot(x,y,charge=0){
   if(this.state!=='wave'||this.paused||this.cooldown>0||this.brush)return false;
   charge=clamp(charge,0,1);x=clamp(x,265,1070);y=clamp(y,100,550);
@@ -143,7 +144,12 @@ class Game{
   for(const b of this.guards){
    b.cooldown=Math.max(0,b.cooldown-dt);
    if(b.phase==='idle'&&b.cooldown<=0){const e=this.nearestEnemy();if(e){b.phase='outbound';b.target=e.id;b.cooldown=this.beeCooldown();}}
-   if(b.phase==='outbound'){const e=this.enemies.find(e=>e.id===b.target&&e.hp>0);if(!e){b.phase='return';b.target=null;}else if(this.moveGuard(b,e.x,e.y,dt)){this.hit(e,this.beeDamage(),'bee');b.phase='return';b.target=null;}}
+   if(b.phase==='outbound'){
+    let e=this.enemies.find(e=>e.id===b.target&&e.hp>0);
+    if(!e){e=this.nearestEnemyTo(b);b.target=e?e.id:null;}
+    if(!e){b.phase='return';b.cooldown=0;}
+    else if(this.moveGuard(b,e.x,e.y,dt)){this.hit(e,this.beeDamage(),'bee');b.phase='return';b.target=null;}
+   }
    if(b.phase==='return'&&this.moveGuard(b,b.homeX,b.homeY,dt)){b.phase='idle';b.target=null;}
   }
   this.workerTarget=null;

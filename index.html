@@ -3,7 +3,8 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <title>Snowman’s Apiary</title>
+  <meta name="description" content="Local honey in Liberal, Kansas. Meet Kyle, read our family beekeeping story, and find honey prices and contact information." />
+  <title>Snowman’s Apiary | Local Honey in Liberal, Kansas</title>
   <style>
 :root{
   color-scheme:dark;
@@ -77,9 +78,11 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;} .poof{display:none;}}
 
   </style>
+  <link rel="stylesheet" href="site.css" />
 </head>
 
 <body>
+  <a class="skipLink" href="#card">Skip to content</a>
   <div id="stage">
     <div id="bgBlur"></div>
 
@@ -87,7 +90,14 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
     <canvas id="pile" aria-hidden="true"></canvas>
 
     <div id="ui">
-      <div class="card" id="card">
+<header class="siteNav">
+  <div class="navHeading"><a class="navBrand" href="index.html">Snowman’s Apiary</a><span class="navPlace">Liberal, Kansas</span></div>
+  <nav class="navLinks" aria-label="Main navigation"><a href="index.html" aria-current="page">Home</a>
+<a href="about.html">About</a>
+<a href="honey.html">Honey &amp; Prices</a>
+<a href="contact.html">Contact</a></nav>
+</header>
+      <main class="card" id="card" tabindex="-1">
         <video class="apiaryVideo" controls autoplay muted playsinline preload="metadata" poster="video-poster.jpg" aria-label="Snowman's Apiary video">
           <source src="snowmans-apiary.mp4" type="video/mp4" />
           Your browser does not support embedded video. <a href="snowmans-apiary.mp4">Watch the video</a>.
@@ -100,14 +110,15 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
 
         <div class="businessDetails">
         <h1>Snowman’s Apiary</h1>
-        <p class="sub">Local honey &amp; apiary goods.</p>
+        <p class="sub">Local honey from Liberal, Kansas.</p>
         <p class="status">out of stock, see you next year!</p>
 
         <a class="btn" href="mailto:snowmansapiary@yahoo.com?subject=Snowman%27s%20Apiary%20Inquiry">Email Snowman’s Apiary</a>
+        <div class="homeLinks"><a href="about.html">Our family story</a><a href="honey.html">Honey sizes &amp; prices</a></div>
         <label class="motionControl"><input type="checkbox" id="reduceMotion" /> Reduce snow animation and screen shake</label>
         </div>
         </div>
-      </div>
+      </main>
     </div>
 
     <section id="gamePanel" aria-label="Snow shoveling game">

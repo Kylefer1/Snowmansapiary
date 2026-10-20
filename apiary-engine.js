@@ -16,11 +16,11 @@ const UPGRADES={
  power:{title:'Packed snow',desc:'Make every snowball hit harder. Hold a shot to break through beetle armor.',base:45,growth:1.9,max:5},
  splash:{title:'Powder burst',desc:'Hit a wider area with each level. Fully upgraded, snowballs have double the splash reach.',base:55,growth:1.9,max:3},
  bees:{title:'Guard bee',desc:'Recruit one real flying defender, up to 20. Every bee attacks and returns independently.',base:38,growth:1.19,max:20},
- training:{title:'Bee training',desc:'Your guard bees hit harder and attack more often with each level.',base:65,growth:2,max:3},
+ training:{title:'Bee training',desc:'No level limit. Your guard bees hit harder and recover faster with each level. Later speed gains become more gradual.',base:65,growth:2,max:Infinity},
  walls:{title:'Hive reinforcement',desc:'All hives gain 25 maximum health and 25 repairs. Destroyed hives stay lost.',base:55,growth:1.9,max:4},
  vaporizer:{title:'Oxalic acid vaporizer',desc:'Reduce damage from visible Varroa by 35% per level. It does not remove every mite.',base:65,growth:1.7,max:2},
- workers:{title:'Worker bees',desc:'Slowly repair the weakest surviving hive during battle. More workers repair it faster.',base:50,growth:1.3,max:10},
- foragers:{title:'Scavenger bees',desc:'Gather nectar while you fight. Collect their honey bonus when you survive the wave. Best hired early.',base:45,growth:1.3,max:10},
+ workers:{title:'Worker bees',desc:'Recruit up to 30. Slowly repair the weakest surviving hive during battle. More workers repair it faster.',base:50,growth:1.3,max:30},
+ foragers:{title:'Scavenger bees',desc:'Recruit up to 30 nectar gatherers. Collect their honey bonus when you survive the wave. Best hired early.',base:45,growth:1.3,max:30},
  repair:{title:'Repair the apiary',desc:'Restore 35 health to every surviving hive.',base:35,growth:1,max:Infinity}
 };
 const SPECIALTIES={
@@ -44,8 +44,13 @@ class Game{
  totalHealth(){return this.hives.reduce((n,h)=>n+h.hp,0);}
  miteCount(h){return h.hp>0?Math.floor(h.mites+1e-8):0;}
  infestation(){return this.hives.reduce((n,h)=>n+this.miteCount(h),0);}
- cost(id){const u=UPGRADES[id];return u?Math.round(u.base*Math.pow(u.growth,this.upgrades[id])):Infinity;}
- canBuy(id){const u=UPGRADES[id];return !!u&&!this.paused&&['ready','between'].includes(this.state)&&this.upgrades[id]<u.max&&(this.mode==='sandbox'||this.honey>=this.cost(id))&&(id!=='repair'||this.living().some(h=>h.hp<h.max));}
+ cost(id){const u=UPGRADES[id];if(!u)return Infinity;const n=this.upgrades[id];
+  // Preserve the original opening prices, then keep uncapped training affordable
+  // for continued progression instead of doubling its cost forever.
+  const value=id==='training'&&n>=3?520*Math.pow(1.22,n-3):u.base*Math.pow(u.growth,n);
+  return Math.min(Number.MAX_SAFE_INTEGER,Math.round(value));
+ }
+ canBuy(id){const u=UPGRADES[id];return !!u&&!this.paused&&['ready','between'].includes(this.state)&&this.upgrades[id]<u.max&&(this.mode==='sandbox'||Number.isFinite(this.cost(id))&&this.cost(id)>=0&&this.honey>=this.cost(id))&&(id!=='repair'||this.living().some(h=>h.hp<h.max));}
  buy(id){
   if(!this.canBuy(id))return false;if(this.mode!=='sandbox')this.honey-=this.cost(id);this.upgrades[id]++;
   if(id==='bees'){const i=this.guards.length;const homeX=245+i%5*31,homeY=125+Math.floor(i/5)*25;this.guards.push({id:i,cooldown:.2+i*.13,phase:'idle',target:null,x:homeX,y:homeY,homeX,homeY});}
@@ -103,7 +108,7 @@ class Game{
  togglePause(){if(!['wave','ready','between'].includes(this.state))return false;this.paused=!this.paused;return this.paused;}
  varroaRate(h){const base=(.13+this.wave*.003)*(1-this.upgrades.vaporizer*.35)*(this.specialty==='care'?.8:1);return h?this.miteCount(h)*base:base;}
  beeDamage(){return 18+this.upgrades.training*10;}
- beeCooldown(){return (3.6-this.upgrades.training*.45)*(this.specialty==='swarm'?.75:1);}
+ beeCooldown(){const level=this.upgrades.training,base=level<=3?3.6-level*.45:2.25/(1+(level-3)*.12);return base*(this.specialty==='swarm'?.75:1);}
  hit(e,damage,kind='snow',charge=0){
   if(e.hp<=0)return;const armored=TYPES[e.type].armored;
   if(armored)damage*=kind==='bee'?.45:charge>=.6?1:.65;

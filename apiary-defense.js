@@ -26,6 +26,31 @@ function round(x,y,w,h,r=8){ctx.beginPath();ctx.roundRect(x,y,w,h,r);}
 function text(t,x,y,size=16,color='#263d32',align='left'){ctx.fillStyle=color;ctx.font=`700 ${size}px system-ui`;ctx.textAlign=align;ctx.fillText(t,x,y);}
 function health(x,y,w,value,max){ctx.fillStyle='#233c37b8';round(x,y,w,7,3);ctx.fill();ctx.fillStyle=value/max>.35?'#587e49':'#bb6549';round(x,y,w*Math.max(0,value/max),7,3);ctx.fill();}
 function season(){return game.wave<13?'SPRING':game.wave<26?'SUMMER':game.wave<39?'AUTUMN':'WINTER';}
+const flowers=Array.from({length:7},(_,i)=>({x:410+i*90,y:535+i%2*22}));
+function drawForagers(frame){
+ if(!game.upgrades.foragers)return;
+ for(const [i,f] of flowers.entries()){
+  ctx.strokeStyle='#496b43';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(f.x,f.y+3);ctx.lineTo(f.x,f.y+22);ctx.stroke();
+  ctx.fillStyle=i%2?'#f5dd9c':'#e8c6df';
+  for(let p=0;p<6;p++){const a=p*Math.PI/3;ctx.beginPath();ctx.ellipse(f.x+Math.cos(a)*7,f.y+Math.sin(a)*7,6,4,a,0,Math.PI*2);ctx.fill();}
+  ctx.fillStyle='#bb812f';ctx.beginPath();ctx.arc(f.x,f.y,4,0,Math.PI*2);ctx.fill();
+ }
+ if(game.state!=='wave')return;
+ const hives=game.living();if(!hives.length)return;
+ for(let i=0;i<game.upgrades.foragers;i++){
+  const f=flowers[i%flowers.length],h=hives[i%hives.length];
+  const phase=reduced?.43:((game.elapsed+i*1.83)%11)/11;
+  const home={x:h.x+27,y:h.y+5},land={x:f.x,y:f.y-12};
+  let x,y,flip=true,landed=false,carrying=false;
+  if(phase<.3){const t=phase/.3;x=home.x+(land.x-home.x)*t;y=home.y+(land.y-home.y)*t-Math.sin(t*Math.PI)*65;}
+  else if(phase<.56){x=land.x;y=land.y;landed=true;}
+  else if(phase<.88){const t=(phase-.56)/.32;x=land.x+(home.x-land.x)*t;y=land.y+(home.y-land.y)*t-Math.sin(t*Math.PI)*42;flip=false;carrying=true;}
+  else{x=home.x;y=home.y;flip=false;carrying=true;}
+  const size=landed?23:27;
+  image('bee',x-size/2,y-size/2,size,size,landed?0:frame,flip);
+  if(carrying){ctx.fillStyle='#f6ca52';ctx.beginPath();ctx.arc(x-3,y+7,3,0,Math.PI*2);ctx.arc(x+4,y+7,3,0,Math.PI*2);ctx.fill();}
+ }
+}
 function draw(){
  if(!ctx)return;ctx.clearRect(0,0,viewW,viewH);ctx.fillStyle='#1e3731';ctx.fillRect(0,0,viewW,viewH);
  ctx.save();ctx.translate(offsetX,offsetY);ctx.scale(scale,scale);
@@ -41,9 +66,9 @@ function draw(){
   image('hive',h.x-54,h.y-62,108,108);health(h.x-42,h.y-65,84,h.hp,h.max);text(Math.ceil(h.hp)+' / '+h.max,h.x,h.y+57,11,'#314c39','center');
   if(game.upgrades.walls){ctx.strokeStyle='#86988b';ctx.lineWidth=4;ctx.strokeRect(h.x-42,h.y-22,84,6);}
   const mites=game.miteCount(h);
-  if(mites){ctx.strokeStyle='#b35034';ctx.lineWidth=2;round(h.x-56,h.y-63,112,112,12);ctx.stroke();
+  if(mites){const pulse=reduced?1:(1+Math.sin(visualTime*Math.PI*2/2.4))/2;ctx.fillStyle=`rgba(190,39,29,${.06+pulse*.13})`;ctx.strokeStyle=pulse>.5?'#ff5e4c':'#b33127';ctx.lineWidth=3+pulse*3;round(h.x-56,h.y-63,112,112,12);ctx.fill();ctx.stroke();
    for(let i=0;i<mites;i++){const t=reduced?i*1.7:visualTime*.9+i*1.7;const x=h.x+Math.sin(t)*31,y=h.y-17+Math.cos(t*.8+i)*22;image('mite',x-10,y-8,20,16,reduced?0:Math.floor(visualTime*5+i)%2);}
-   text(mites+' MITES · TAP HIVE',h.x,h.y+72,10,'#8e3023','center');
+   const size=Math.max(20,10/scale),w=size*5.6;ctx.fillStyle='#942b22';round(h.x+61,h.y+14,w,size+12,7);ctx.fill();text('TAP HIVE',h.x+61+w/2,h.y+size+18,size,'#fff4d6','center');
   }else if(h.cleanTime>0)text('BRUSHED CLEAR',h.x,h.y+72,10,'#2c6648','center');
  }
  let snowX=10,snowY=290,snowFrame=throwFlash>0?1:0;
@@ -54,12 +79,12 @@ function draw(){
  if(reduced&&game.brush){snowX=game.hives[game.brush.hive].x-140;snowY=game.hives[game.brush.hive].y-115;}
  image('snowman',snowX,snowY,165,165,snowFrame);
  if(!game.brush)text('SNOWMAN',93,473,11,'#354e3b','center');
- if(game.upgrades.vaporizer){image('vaporizer',83,475,69,69);text('VARROA −'+game.upgrades.vaporizer*35+'%',125,562,10,'#355442','center');
-  if(!reduced&&game.state==='wave'){ctx.strokeStyle='#eaf3d3b0';ctx.lineWidth=3;for(let i=0;i<3;i++){const t=(visualTime*.7+i*.33)%1;ctx.globalAlpha=1-t;ctx.beginPath();ctx.arc(142+t*17,479-t*33,5+t*8,0,Math.PI*1.3);ctx.stroke();}ctx.globalAlpha=1;}}
+ if(game.upgrades.vaporizer){image('vaporizer',35,190,69,69);text('VARROA −'+game.upgrades.vaporizer*35+'%',70,275,10,'#355442','center');
+  if(!reduced&&game.state==='wave'){ctx.strokeStyle='#eaf3d3b0';ctx.lineWidth=3;for(let i=0;i<3;i++){const t=(visualTime*.7+i*.33)%1;ctx.globalAlpha=1-t;ctx.beginPath();ctx.arc(94+t*17,194-t*33,5+t*8,0,Math.PI*1.3);ctx.stroke();}ctx.globalAlpha=1;}}
  const frame=reduced?0:Math.floor(visualTime*9)%2;
  for(const b of game.guards)image('bee',b.x-20,b.y-20,40,40,frame,b.phase!=='return');
  if(game.workerTarget!==null){const h=game.hives[game.workerTarget];for(let i=0;i<Math.min(game.upgrades.workers,4);i++){const a=reduced?i:visualTime*2+i*1.5;image('bee',h.x-58+Math.cos(a)*12,h.y-10+Math.sin(a)*19,27,27,frame,true);}text('REPAIRING',h.x,h.y-76,9,'#2c6648','center');}
- if(game.upgrades.foragers&&game.state==='wave')for(let i=0;i<Math.min(game.upgrades.foragers,5);i++){const t=reduced?i*.17:(visualTime*.17+i*.19)%1;image('bee',430+t*560,510+Math.sin(t*8+i)*22,27,27,frame,t<.5);}
+ drawForagers(frame);
  const sorted=[...game.enemies].sort((a,b)=>a.y-b.y);
  for(const e of sorted){
   const fly=['beetle','mouse','worm'].includes(e.type)?0:reduced?0:Math.sin(visualTime*4+e.phase)*4;
@@ -85,7 +110,7 @@ function fire(x,y,charge){
  if(near&&Math.hypot(near.x-x,near.y-y)<70){const flight=.18+Math.hypot(near.x-99,near.y-345)/2200;x=near.x-near.speed*flight*(game.slowTime>0?.42:1);y=near.y;}
  if(game.shoot(x,y,charge))throwFlash=.18;
 }
-canvas.addEventListener('pointerdown',e=>{if(e.button!==0||game.state!=='wave'||game.paused||charging)return;e.preventDefault();canvas.focus({preventScroll:true});aim=pointerPoint(e);const hive=game.hives.find(h=>h.hp>0&&Math.abs(h.x-aim.x)<70&&Math.abs(h.y-aim.y)<64);if(hive){game.clearMites(hive.id);updateHud();return;}charging=true;chargeStart=performance.now();pointerId=e.pointerId;canvas.setPointerCapture(e.pointerId);$('charge').hidden=false;});
+canvas.addEventListener('pointerdown',e=>{if(e.button!==0||game.state!=='wave'||game.paused||charging)return;e.preventDefault();canvas.focus({preventScroll:true});aim=pointerPoint(e);const labelSize=Math.max(20,10/scale);const hive=game.hives.find(h=>h.hp>0&&(Math.abs(h.x-aim.x)<70&&Math.abs(h.y-aim.y)<64||game.miteCount(h)&&aim.x>=h.x+61&&aim.x<=h.x+61+labelSize*5.6&&aim.y>=h.y+14&&aim.y<=h.y+labelSize+26));if(hive){game.clearMites(hive.id);updateHud();return;}charging=true;chargeStart=performance.now();pointerId=e.pointerId;canvas.setPointerCapture(e.pointerId);$('charge').hidden=false;});
 canvas.addEventListener('pointermove',e=>{if(pointerId!==null&&pointerId!==e.pointerId)return;aim=pointerPoint(e);});
 canvas.addEventListener('pointerup',e=>{if(!charging||pointerId!==e.pointerId)return;aim=pointerPoint(e);const value=chargeValue();cancelCharge();if(canvas.hasPointerCapture(e.pointerId))canvas.releasePointerCapture(e.pointerId);fire(aim.x,aim.y,value);});
 canvas.addEventListener('pointercancel',cancelCharge);canvas.addEventListener('lostpointercapture',cancelCharge);
@@ -101,7 +126,7 @@ document.addEventListener('visibilitychange',()=>{last=performance.now();cancelC
 window.addEventListener('blur',cancelCharge);
 $('nextWave').addEventListener('click',()=>{if(game.startWave()){canvas.focus({preventScroll:true});updateHud();}});
 $('pauseButton').addEventListener('click',()=>{game.togglePause();cancelCharge();updateHud();});
-$('smokeButton').addEventListener('click',()=>{game.smoke();updateHud();});
+for(const id of ['smokeButton','fieldSmoke'])$(id).addEventListener('click',()=>{cancelCharge();game.smoke();updateHud();});
 function openDialog(id){cancelCharge();dialogPause=game.paused;game.paused=true;$(id).showModal();updateHud();}
 function closeDialog(id){$(id).close();}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeDialog(b.dataset.close)));
@@ -140,14 +165,14 @@ const entries={
  varroa:{title:'Varroa & the vaporizer',image:'vaporizer.svg',html:'<h4>In the game</h4><p>Varroa causes a small, continuous health loss to surviving hives during active waves. It is background pressure, rather than a giant flying enemy.</p><p>The oxalic acid vaporizer is a base upgrade: level 1 reduces that damage by 35%; level 2 reduces it by 70% in total. These are invented balance values, not real-world treatment efficacy. It does not damage moths, beetles or hornets.</p><h4>In a real apiary</h4><p>Varroa is a parasitic mite associated with serious bee-health problems and viral transmission. Oxalic acid vaporization targets mites on adult bees but does not reach those protected inside capped brood. Monitoring and follow-up matter.</p><div class="biologyNote"><p>Real treatments must follow the current label on the actual registered product, including protective equipment and application restrictions. This game provides no dose, recipe or treatment schedule. At Snowman’s Apiary, Kyle uses oxalic acid vapor treatments when necessary.</p></div>'}
 };
 
-entries.how.html='<p>Choose Campaign for 50 demanding waves and earned honey, or Sandbox for unlimited shopping and endless raids. A campaign victory unlocks an optional endless continuation.</p><h4>Choose a build</h4><p>Snowball power counters tough enemies. Powder Burst clears clusters; its final level doubles splash reach. Guard bees chase fast raiders, but armored beetles resist their attacks. Hold a snowball to charge an armor-piercing hit. Speed ramps up to a cap; enemy health and damage continue growing.</p><h4>Care for the hives</h4><p>Red mites crawl on infested boxes. Tap a hive, use its Brush button, or press 1, 2 or 3 while the battlefield is focused. The snowman walks over and brushes them away. You cannot throw while he works, so pick your moment. Worker bees repair the weakest surviving hive; scavenger bees gather a nectar bonus, paid only after clearing a wave.</p><h4>Commit after the opening</h4><p>After wave 7, choose one specialty for your run: stronger snowballs, faster guard bees, or stronger hive care. In Sandbox, specialties are available immediately. Read the next-raid forecast before spending. Up to 20 guard bees can defend at once; every guard leaves its perch, attacks and flies back.</p><h4>Controls</h4><p>Mouse or touch: aim, hold, release. Keyboard: focus the battlefield, arrows pick a target, hold and release Space to throw, 1/2/3 brushes a hive, P pauses. The field manual pauses the game.</p><div class="biologyNote"><p>Snowball combat, oversized visible mites, brushing mites off boxes, repair points and nectar bonuses are arcade inventions. Real Varroa are parasites on bees and within brood cells; brushing a hive box is not a real Varroa treatment.</p></div>';
+entries.how.html='<p>Choose Campaign for 50 demanding waves and earned honey, or Sandbox for unlimited shopping and endless raids. A campaign victory unlocks an optional endless continuation.</p><h4>Choose a build</h4><p>Snowball power counters tough enemies. Powder Burst clears clusters; its final level doubles splash reach. Guard bees chase fast raiders, but armored beetles resist their attacks. Hold a snowball to charge an armor-piercing hit. Speed ramps up to a cap; enemy health and damage continue growing.</p><h4>Care for the hives</h4><p>Infestations can appear randomly during a wave; starting a wave does not add mites. Untreated mites carry over until brushed away. A pulsing red outline and a large Tap Hive label mark an infested box. Tap a hive, use its Brush button, or press 1, 2 or 3 while the battlefield is focused. The snowman walks over and brushes them away. You cannot throw while he works, so pick your moment. Worker bees repair the weakest surviving hive; scavenger bees gather a nectar bonus, paid only after clearing a wave.</p><h4>Commit after the opening</h4><p>After wave 7, choose one specialty for your run: stronger snowballs, faster guard bees, or stronger hive care. In Sandbox, specialties are available immediately. Read the next-raid forecast before spending. Up to 20 guard bees can defend at once; every guard leaves its perch, attacks and flies back.</p><h4>Controls</h4><p>Mouse or touch: aim, hold, release. Keyboard: focus the battlefield, arrows pick a target, hold and release Space to throw, 1/2/3 brushes a hive, P pauses. Use the smoker button in the bottom-left of the battlefield for five seconds of slower enemies, once per wave. The field manual pauses the game.</p><div class="biologyNote"><p>Snowball combat, oversized visible mites, brushing mites off boxes, repair points and nectar bonuses are arcade inventions. Real Varroa are parasites on bees and within brood cells; brushing a hive box is not a real Varroa treatment.</p></div>';
 entries.beetle.html=entries.beetle.html.replace('Slower enemies with more health. Charged snowballs and guard bees help wear them down. They start appearing in wave 2.','Armored enemies resist guard-bee attacks and ordinary snowballs. Hold to charge a shot and pierce their armor. They arrive from wave 2. The armor rules are a game mechanic.');
 entries.hornet.html=entries.hornet.html.replace('arrives in wave 10','returns every ten waves');
-entries.varroa.html=entries.varroa.html.replace('Varroa causes a small, continuous health loss to surviving hives during active waves. It is background pressure, rather than a giant flying enemy.','Visible mites crawl over infested hives and cause health loss during waves. Tap a hive or its Brush button to send the snowman to clear it. Brushing takes time and pauses your snowballs. Mites can return. This is an exaggerated game representation.');
+entries.varroa.html=entries.varroa.html.replace('Varroa causes a small, continuous health loss to surviving hives during active waves. It is background pressure, rather than a giant flying enemy.','Mites can arrive randomly during an active wave, after a short opening grace period. A fresh wave does not automatically infest clean hives. Untreated mites remain between waves and cause health loss during battle. A pulsing red outline and a large Tap Hive label identify an infestation. Tap a hive or its Brush button to send the snowman to clear it. Brushing takes time and pauses your snowballs. Mites can return. This is an exaggerated game representation.');
 entries.worm={title:'Waxworms',sprite:'waxworm.svg',html:'<h4>In the game</h4><p>Tough comb crawlers appear from wave 3. Powerful snowballs make a bigger difference against their health. Their exaggerated size and durability are fictional.</p><h4>In a real apiary</h4><p>Waxworms are wax-moth larvae. They can tunnel through unprotected comb and leave webbing and debris. Their presence after a colony dies does not establish why it died.</p>'};
 entries.wasp={title:'Wasp raiders',sprite:'wasp.svg',html:'<h4>In the game</h4><p>Fast, lightly built raiders appear from wave 6, with larger rushes later on. Guard bees track them automatically; splash damage helps against clusters. Their speed and attack values are invented.</p><h4>In a real apiary</h4><p>Some social wasps prey on bees or take hive resources. Species and circumstances matter. This drawing is a fictional composite, not a guide to identifying insects or nests.</p>'};
 entries.mouse={title:'Mice',sprite:'mouse.svg',html:'<h4>In the game</h4><p>Heavy raiders appear from wave 9. They are slow but hard to stop and deal heavy damage if they reach the hives. Prioritize power and sturdy defenses.</p><h4>In a real apiary</h4><p>Mice can damage stored comb and may shelter in active hives during colder months. The marching, oversized raider is a game invention. Suitable entrance protection is part of real hive care.</p>'};
-entries.workers={title:'Workers & nectar foragers',sprite:'guard-bee.svg',html:'<h4>Worker bees</h4><p>Each recruit adds steady repairs during a wave, directed at the weakest surviving hive. They cannot rebuild destroyed hives. Repair strength is a game mechanic.</p><h4>Scavenger bees</h4><p>These are your nectar foragers. They build a honey bonus while you fight, which is paid after you survive the wave. Lost waves forfeit the pending bonus. Hiring them early gives more waves to earn back the investment.</p><h4>Real bees</h4><p>These jobs are carried out by worker honey bees: collecting nectar and pollen, tending the colony and maintaining comb. The game separates them into recruit types for strategic choices.</p>'};
+entries.workers={title:'Workers & nectar foragers',sprite:'guard-bee.svg',html:'<h4>Worker bees</h4><p>Each recruit adds steady repairs during a wave, directed at the weakest surviving hive. They cannot rebuild destroyed hives. Repair strength is a game mechanic.</p><h4>Scavenger bees</h4><p>These are your nectar foragers. They fly from the hives to flowers, land to gather nectar, and carry it home. They build a honey bonus while you fight, which is paid after you survive the wave. Lost waves forfeit the pending bonus. Hiring them early gives more waves to earn back the investment.</p><h4>Real bees</h4><p>These jobs are carried out by worker honey bees: collecting nectar and pollen, tending the colony and maintaining comb. The game separates them into recruit types for strategic choices.</p>'};
 
 function manual(id){
  const e=entries[id]||entries.how,container=$('manualEntry');container.className='manualEntry';container.replaceChildren();
@@ -180,6 +205,8 @@ function updateHud(){
  $('nextWave').disabled=!modeChosen||game.paused||!['ready','between'].includes(game.state);
  $('shopButton').disabled=!modeChosen||game.paused||!['ready','between'].includes(game.state);
  $('smokeButton').disabled=game.state!=='wave'||game.paused||game.smokerUsed;
+ $('fieldSmoke').disabled=$('smokeButton').disabled;
+ $('fieldSmoke').innerHTML=game.smokerUsed?'Smoker used<span>Next wave</span>':'Use smoker<span>Slow enemies · once per wave</span>';
  $('smokeButton').innerHTML=game.smokerUsed?'Smoker used<span>Resets next wave</span>':'Smoker cloud<span>Once per wave</span>';
  $('pauseButton').textContent=game.paused?'Resume':'Pause';$('pauseButton').disabled=!['ready','between','wave'].includes(game.state);
  $('pauseShade').hidden=!game.paused||$('shopDialog').open||$('manualDialog').open;
@@ -196,6 +223,6 @@ function tick(now){
  if(!document.hidden&&artReady){if(!game.paused){if(!reduced)visualTime+=dt;throwFlash=Math.max(0,throwFlash-dt);}game.step(dt);updateHud();if(charging)$('chargeFill').style.width=chargeValue()*100+'%';draw();}
  requestAnimationFrame(tick);
 }
-Promise.allSettled(Object.entries(names).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();images[key]=img;img.onload=resolve;img.onerror=reject;img.src='apiary-art/'+file+'?v=2';}))).then(results=>{artReady=true;$('loading').hidden=true;if(results.some(r=>r.status==='rejected'))game.message='Some artwork could not load. You can still play with simple shapes.';resize();updateHud();});
+Promise.allSettled(Object.entries(names).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();images[key]=img;img.onload=resolve;img.onerror=reject;img.src='apiary-art/'+file+'?v=3';}))).then(results=>{artReady=true;$('loading').hidden=true;if(results.some(r=>r.status==='rejected'))game.message='Some artwork could not load. You can still play with simple shapes.';resize();updateHud();});
 manual('how');resize();updateHud();$('modeDialog').showModal();requestAnimationFrame(tick);
 })();

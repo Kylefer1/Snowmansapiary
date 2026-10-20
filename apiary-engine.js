@@ -36,7 +36,7 @@ class Game{
   this.hives=[0,1,2].map(i=>({id:i,x:205,y:260+i*105,hp:120,max:120,mites:0,cleanTime:0}));
   this.enemies=[];this.projectiles=[];this.effects=[];this.guards=[];this.spawnQueue=[];this.brush=null;this.nectarBank=0;this.lastHarvest=0;this.workerTarget=null;
   this.upgrades={power:0,splash:0,bees:0,training:0,walls:0,vaporizer:0,workers:0,foragers:0,repair:0};this.specialty=null;this.cooldown=0;this.kills=0;this.nextId=1;
-  this.discovered=new Set(['moth','varroa']);this.events=[];this.slowTime=0;this.smokerUsed=false;
+  this.discovered=new Set(['moth','varroa']);this.events=[];this.slowTime=0;this.smokerUsed=false;this.miteCheckIn=0;
   this.message='Fifty waves. Three hives. Choose your opening upgrades, then defend.';
  }
  emit(type,data={}){this.events.push({type,...data});if(this.events.length>100)this.events.shift();}
@@ -77,7 +77,7 @@ class Game{
  startWave(){
   if(this.paused||!['ready','between'].includes(this.state)||!this.living().length||this.wave>=LIMITS.waves&&!this.endless)return false;
   this.wave++;this.state='wave';this.elapsed=0;this.smokerUsed=false;this.slowTime=0;this.spawnQueue=this.plan(this.wave);this.cooldown=0;this.brush=null;this.nectarBank=0;this.lastHarvest=0;this.workerTarget=null;
-  this.living().forEach(h=>{h.mites=Math.min(LIMITS.maxMites,Math.max(1,h.mites)+1);h.cleanTime=0;});
+  this.miteCheckIn=8+this.random()*6;
   this.message=this.wave===50?'Final siege: hold the apiary!':`Wave ${this.wave} — defend the hives and brush off visible mites.`;
   return true;
  }
@@ -117,7 +117,16 @@ class Game{
   this.time+=dt;this.elapsed+=dt;this.cooldown=Math.max(0,this.cooldown-dt);this.slowTime=Math.max(0,this.slowTime-dt);
   if(this.brush){const b=this.brush;b.t+=dt;const h=this.hives[b.hive];if(!b.cleared&&b.t>=b.duration*.55){h.mites=0;h.cleanTime=5;b.cleared=true;this.message=`Hive ${h.id+1} brushed clear. Watch for mites returning.`;this.effects.push({x:h.x,y:h.y-25,text:'MITES CLEARED',life:1.1,type:'clean'});}if(b.t>=b.duration)this.brush=null;}
   while(this.spawnQueue.length&&this.spawnQueue[0].at<=this.elapsed){const s=this.spawnQueue.shift();this.spawn(s.type,s.lane);}
-  for(const h of this.living()){h.cleanTime=Math.max(0,h.cleanTime-dt);if(!h.cleanTime)h.mites=Math.min(LIMITS.maxMites,h.mites+(.045+Math.min(.11,this.wave*.003))*dt);h.hp=Math.max(0,h.hp-this.varroaRate(h)*dt);}
+  for(const h of this.living())h.cleanTime=Math.max(0,h.cleanTime-dt);
+  this.miteCheckIn-=dt;
+  if(this.miteCheckIn<=0){
+   this.miteCheckIn=6+this.random()*6;
+   if(this.random()<Math.min(.7,.45+this.wave*.006)){
+    const candidates=this.living().filter(h=>!h.cleanTime&&this.miteCount(h)<LIMITS.maxMites);
+    if(candidates.length){const h=candidates[Math.min(candidates.length-1,Math.floor(this.random()*candidates.length))];h.mites=Math.min(LIMITS.maxMites,this.miteCount(h)+1);this.emit('infestation',{hive:h.id});if(!this.brush)this.message=`Varroa spotted on hive ${h.id+1}! Tap the hive to brush them off.`;}
+   }
+  }
+  for(const h of this.living())h.hp=Math.max(0,h.hp-this.varroaRate(h)*dt);
   for(const e of this.enemies){
    if(e.hp<=0)continue;const h=this.living().reduce((a,h)=>!a||Math.abs(h.y-e.baseY)<Math.abs(a.y-e.baseY)?h:a,null);if(!h)break;
    const dx=h.x+70-e.x,dy=h.y-e.y,d=Math.hypot(dx,dy);

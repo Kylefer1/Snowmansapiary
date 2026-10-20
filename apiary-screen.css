@@ -1,0 +1,73 @@
+#fullscreenButton{margin-left:auto;white-space:nowrap;min-height:44px;padding:9px 14px;font-size:12px;border-color:#d5b976;color:#ffe5ac}
+.gameHeader .backLink{white-space:nowrap}
+.screenHint{display:none}
+body.immersive{position:fixed;inset:0;overflow:hidden;background:#102322}
+body.immersive .gameShell{width:100%;max-width:none;height:100vh;height:100dvh;display:flex;flex-direction:column;padding:max(6px,env(safe-area-inset-top)) max(8px,env(safe-area-inset-right)) max(6px,env(safe-area-inset-bottom)) max(8px,env(safe-area-inset-left));gap:6px}
+body.immersive .gameHeader{flex:none;margin:0;gap:14px;min-height:44px}
+body.immersive .gameHeader h1{font-size:22px;margin:0}
+body.immersive .gameHeader .kicker,body.immersive .edition,body.immersive .factBar,body.immersive footer{display:none}
+body.immersive main{flex:1;min-height:0;display:grid;grid-template-columns:minmax(0,1fr) 244px;grid-template-rows:auto minmax(0,1fr) auto;gap:6px 10px}
+body.immersive .dashboard{grid-column:1;grid-row:1;grid-template-columns:repeat(5,minmax(0,1fr)) 1.4fr;padding:7px 10px;gap:8px}
+body.immersive .dashboard span{font-size:9px;letter-spacing:.4px}
+body.immersive .dashboard strong{font-size:16px}
+body.immersive .battleWrap{grid-column:1;grid-row:2;min-height:0;padding-bottom:52px;background:#19352d}
+body.immersive canvas{height:100%;width:100%;min-height:0;aspect-ratio:auto}
+body.immersive .fieldSmoke{bottom:5px;left:7px;min-height:42px;padding:6px 11px;font-size:12px}
+body.immersive .fieldSmoke span{font-size:9px}
+body.immersive .pauseShade{bottom:52px}
+body.immersive .charge{bottom:60px}
+body.immersive .messageRow{grid-column:1;grid-row:3;margin:0;min-height:30px;padding:0;display:block}
+body.immersive .messageRow #message{font-size:11px;line-height:1.4}
+body.immersive #aimHelp{display:none}
+body.immersive .gamePanel{grid-column:2;grid-row:1/-1;min-height:0;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;padding:0 3px 3px;display:flex;flex-direction:column;gap:8px}
+body.immersive .wavePreview{margin:0;font-size:10px;padding:8px}
+body.immersive .hiveCare{margin:0;gap:5px;grid-template-columns:repeat(3,minmax(0,1fr));flex-shrink:0}
+body.immersive .hiveCare button{min-height:48px;padding:6px 3px;font-size:10px;line-height:1.4}
+body.immersive .harvestLine{margin:0;font-size:10px;line-height:1.4}
+body.immersive .gameControls{grid-template-columns:repeat(2,minmax(0,1fr));gap:6px;flex-shrink:0}
+body.immersive .gameControls button{grid-column:auto;min-height:44px;padding:7px 5px;font-size:12px;line-height:1.25}
+body.immersive .gameControls button span{font-size:9px}
+body.immersive .keyboardHelp,body.immersive .settings>span{display:none}
+body.immersive .settings{display:block;margin:0;font-size:10px;flex-shrink:0}
+body.immersive dialog{max-height:calc(100dvh - 16px);scroll-padding:15px}
+body.immersive .dialogHead{position:sticky;top:-28px;background:#20392f;z-index:1;padding-top:8px}
+@media(orientation:landscape) and (max-height:500px){
+ body.immersive .gameShell{gap:4px;padding-top:max(3px,env(safe-area-inset-top));padding-bottom:max(3px,env(safe-area-inset-bottom))}
+ body.immersive .gameHeader{min-height:40px}
+ body.immersive .gameHeader h1{font-size:18px}
+ body.immersive #fullscreenButton{min-height:38px;padding:7px 11px}
+ body.immersive main{grid-template-columns:minmax(0,1fr) 228px;gap:4px 8px}
+ body.immersive .dashboard{padding:5px 8px;gap:6px;grid-template-columns:.7fr 1.5fr .7fr .8fr .8fr 1.7fr}
+ body.immersive .dashboard strong{font-size:14px}
+ body.immersive .dashboard #honey{font-size:13px}
+ body.immersive .gamePanel{gap:6px}
+ body.immersive .wavePreview{display:none}
+ body.immersive .hiveCare button{min-height:46px;font-size:9px}
+ body.immersive .harvestLine{font-size:9px}
+ body.immersive .messageRow{min-height:26px}
+ body.immersive .messageRow #message{font-size:10px}
+ body.immersive .battleWrap{padding-bottom:46px}
+ body.immersive .fieldSmoke{min-height:38px;bottom:4px;font-size:11px}
+ body.immersive .pauseShade{bottom:46px}
+ body.immersive .charge{bottom:52px}
+ body.immersive dialog{padding:18px}
+ body.immersive .dialogHead{top:-18px}
+}
+@media(orientation:portrait) and (max-width:700px){
+ body.immersive .gameHeader{gap:9px}
+ body.immersive .gameHeader h1{font-size:19px}
+ body.immersive .backLink{font-size:11px}
+ body.immersive #fullscreenButton{font-size:11px;padding:8px 10px}
+ body.immersive .screenHint{display:block;font-size:10px;line-height:1.4;color:#c9d9ba;margin:0}
+ body.immersive main{grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(155px,1fr) auto minmax(0,1fr);gap:6px}
+ body.immersive .gamePanel{grid-column:1;grid-row:4;gap:6px}
+ body.immersive .dashboard{border-radius:10px 10px 0 0;grid-template-columns:repeat(3,minmax(0,1fr))}
+ body.immersive .dashboard span{font-size:8px;letter-spacing:0}
+ body.immersive .dashboard strong,body.immersive .dashboard #honey{font-size:13px}
+ body.immersive .dashboard .miteStat strong{font-size:9px!important}
+ body.immersive .wavePreview{display:none}
+ body.immersive .gameControls{grid-template-columns:repeat(3,minmax(0,1fr))}
+ body.immersive .gameControls button{font-size:11px}
+ body.immersive .hiveCare button{min-height:44px}
+ body.immersive .dialogHead{top:-20px}
+}

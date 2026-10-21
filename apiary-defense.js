@@ -206,7 +206,7 @@ function updateHud(){
  
  $('modeLabel').textContent=(game.mode==='sandbox'?'Sandbox · Endless':'Campaign'+(game.endless?' · Endless':''))+' · v2';
  $('nectarBank').textContent=Math.floor(game.nectarBank)+' honey gathered';
- for(const b of document.querySelectorAll('[data-hive]')){const h=game.hives[Number(b.dataset.hive)],m=game.miteCount(h);b.textContent=h.hp<=0?'Hive '+(h.id+1)+' · lost':`Hive ${h.id+1} · ${Math.ceil(h.hp)} HP · ${m} mites${m?' — Brush':' — clear'}`;b.disabled=game.state!=='wave'||game.paused||!!game.brush||!m;}
+ for(const b of document.querySelectorAll('[data-hive]')){const h=game.hives[Number(b.dataset.hive)],m=game.miteCount(h);b.textContent=h.hp<=0?'Hive '+(h.id+1)+' · lost':`Hive ${h.id+1} · ${Math.ceil(h.hp)} HP · ${m} mites${m?' | Brush':' | clear'}`;b.disabled=game.state!=='wave'||game.paused||!!game.brush||!m;}
  const next=game.wave+1,plan=game.plan(next),kinds=[...new Set(plan.map(e=>TYPES[e.type].name))];
  $('wavePreview').textContent=`Next raid: wave ${next} · ${plan.length} enemies · ${kinds.join(', ')}. ${game.speedScale(next)>=LIMITS.speedMultiplier?'Speed has reached its cap.':'Speed and health increase as you advance.'}`;
 

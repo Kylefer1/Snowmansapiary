@@ -70,12 +70,12 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
 @media(max-width:480px){#ui{padding:12px;} .card{padding:14px 12px;} #hud{gap:4px 6px;left:8px;right:8px;font-size:12px;} .row .label{font-size:11px;} #shovelLabel{font-size:13px;padding:9px 14px;}}
 @media(prefers-reduced-motion:reduce){*,*::before,*::after{scroll-behavior:auto!important;} .poof{display:none;}}
 
-  </style><link rel="stylesheet" href="snow-game.css" /><link rel="stylesheet" href="bee-facts.css" /><script src="bee-facts.js" defer></script></head><body><a class="skipLink" href="#pileHit">Skip to game</a><div id="stage"><div id="bgBlur"></div><canvas id="snow" aria-hidden="true"></canvas><canvas id="pile" aria-hidden="true"></canvas><div id="ui"><main id="card" class="gameTop" tabindex="-1"><div class="gameTitleRow"><h1>Snow shoveling</h1><a href="games.html">← Back to Games</a></div><label class="motionControl"><input type="checkbox" id="reduceMotion" /> Reduce snow animation and screen shake</label></main><aside class="factBar" aria-label="From the hive: bee science facts"><div class="factHeading"><span class="factEyebrow">✦ From the hive</span><button class="factNext" type="button" hidden>Another fact ↻</button></div><div class="factContent" aria-live="polite" aria-atomic="true"><strong class="factTitle">Stay curious about bees.</strong><p class="factText">Explore the science, seasons and stories behind the hive in Snowman’s beekeeping guide.</p><a class="factSource" href="beekeeping.html">Explore the beekeeping guide ↗</a></div></aside></div>    <section id="gamePanel" aria-label="Snow shoveling game">
+  </style><link rel="stylesheet" href="snow-game.css" /><link rel="stylesheet" href="bee-facts.css" /><script src="bee-facts.js?v=20261021-copy" defer></script></head><body><a class="skipLink" href="#pileHit">Skip to game</a><div id="stage"><div id="bgBlur"></div><canvas id="snow" aria-hidden="true"></canvas><canvas id="pile" aria-hidden="true"></canvas><div id="ui"><main id="card" class="gameTop" tabindex="-1"><div class="gameTitleRow"><h1>Snow shoveling</h1><a href="games.html">← Back to Games</a></div><label class="motionControl"><input type="checkbox" id="reduceMotion" /> Reduce snow animation and screen shake</label></main><aside class="factBar" aria-label="From the hive: bee science facts"><div class="factHeading"><span class="factEyebrow">✦ From the hive</span><button class="factNext" type="button" hidden>Another fact ↻</button></div><div class="factContent" aria-live="polite" aria-atomic="true"><strong class="factTitle">A few things about bees</strong><p class="factText">Read about honeybees, seasonal hive care and getting started with beekeeping.</p><a class="factSource" href="beekeeping.html">Explore the beekeeping guide ↗</a></div></aside></div>    <section id="gamePanel" aria-label="Snow shoveling game">
     <div id="hud">
       <div class="row"><span class="label">Score</span><span class="val" id="score">0</span></div>
       <div class="row"><span class="label">High</span><span class="val" id="high">0</span></div>
       <div class="row"><span class="label">Combo</span><span class="val" id="combo">x0</span></div>
-      <div class="row"><span class="label">Buried at</span><span class="val" id="buried">—</span></div>
+      <div class="row"><span class="label">Buried at</span><span class="val" id="buried">N/A</span></div>
       <div class="row"><span class="label">Blizzard</span><span class="val" id="blz">idle</span></div>
 
       <div class="bar" title="The blizzard temptation bar">
@@ -159,7 +159,7 @@ function endBlizzard(){
 }
 function reset(start=false){
   alive=start;hasStarted=start;gameDismissed=false;score=0;combo=0;lastTapTime=null;gameTime=0;pileLevel=.12;shovelWear=0;last=performance.now();
-  endBlizzard();buriedEl.textContent="—";overlay.hidden=true;pileHit.disabled=false;
+  endBlizzard();buriedEl.textContent="N/A";overlay.hidden=true;pileHit.disabled=false;
   stage.classList.remove("game-hidden");returnBtn.hidden=true;
   shovelLabel.textContent=start?"Shovel snow · Space / Enter":"Start shoveling · tap or press Space";
   if(!start)hintEl.textContent="Snow game: start whenever you like. Your high score stays on this device.";

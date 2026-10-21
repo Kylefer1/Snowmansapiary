@@ -83,7 +83,7 @@ class Game{
   if(this.paused||!['ready','between'].includes(this.state)||!this.living().length||this.wave>=LIMITS.waves&&!this.endless)return false;
   this.wave++;this.state='wave';this.elapsed=0;this.smokerUsed=false;this.slowTime=0;this.spawnQueue=this.plan(this.wave);this.cooldown=0;this.brush=null;this.nectarBank=0;this.lastHarvest=0;this.workerTarget=null;
   this.miteCheckIn=8+this.random()*6;
-  this.message=this.wave===50?'Final siege: hold the apiary!':`Wave ${this.wave} — defend the hives and brush off visible mites.`;
+  this.message=this.wave===50?'Final siege: hold the apiary!':`Wave ${this.wave}: defend the hives and brush off visible mites.`;
   return true;
  }
  spawn(type,lane=0){

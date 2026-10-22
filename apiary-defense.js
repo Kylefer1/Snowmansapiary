@@ -5,7 +5,7 @@ const {Game,TYPES,UPGRADES,SPECIALTIES,LIMITS,clamp}=ApiaryDefense;
 const $=id=>document.getElementById(id),canvas=$('battlefield'),ctx=canvas.getContext('2d');
 if(!ctx){$('loading').textContent='Canvas is unavailable in this browser. Please try a current browser.';return;}
 const game=new Game();
-let modeChosen=false,pointerInput=null,shotsThrown=0,shopOpenedWave=-1;
+let modeChosen=false,pointerInput=null,shotsThrown=0,shopOpenedWave=-1,gameSpeed=1;
 function loadBest(){try{const n=Number(localStorage.getItem("snowmans_apiary_defense_v2_best_"+game.mode));return Number.isSafeInteger(n)&&n>0?n:0;}catch{return 0;}}
 const images={},names={landscape:'landscape.svg',snowman:'snowman.svg',hive:'hive.svg',bee:'guard-bee.svg',moth:'wax-moth.svg',beetle:'hive-beetle.svg',hornet:'hornet.svg',worm:'waxworm.svg',mouse:'mouse.svg',wasp:'wasp.svg',mite:'varroa.svg',vaporizer:'vaporizer.svg'};
 let scale=1,offsetX=0,offsetY=0,viewW=1100,viewH=600,last=0,artReady=false,visualTime=0,lastHud='',dialogPause=false,charging=false,chargeStart=0,pointerId=null,aim={x:700,y:330},keyboardIndex=0,throwFlash=0,endShown=false,best=0;
@@ -89,8 +89,8 @@ function draw(){
  const sorted=[...game.enemies].sort((a,b)=>a.y-b.y);
  for(const e of sorted){
   const fly=['beetle','mouse','worm'].includes(e.type)?0:reduced?0:Math.sin(visualTime*4+e.phase)*4;
-  const w=e.type==='boss'?150:e.type==='hornet'?91:e.type==='mouse'?100:e.type==='beetle'?64:e.type==='worm'?75:e.type==='wasp'?62:78;const key=e.type==='boss'?'hornet':e.type;
-  ctx.save();if(e.type==='boss'){ctx.shadowColor='#ab734e66';ctx.shadowBlur=13;}
+  const w=e.bonusRaid?62:e.type==='boss'?150:e.type==='hornet'?91:e.type==='mouse'?100:e.type==='beetle'?64:e.type==='worm'?75:e.type==='wasp'?62:78;const key=e.type==='boss'?'hornet':e.type;
+  ctx.save();if(e.bonusRaid){ctx.shadowColor='#f6ca56';ctx.shadowBlur=9;}if(e.type==='boss'){ctx.shadowColor='#ab734e66';ctx.shadowBlur=13;}
   image(key,e.x-w/2,e.y-w/2+fly,w,w,frame);ctx.restore();
   health(e.x-w*.4,e.y-w*.45-8,w*.8,e.hp,e.max);
   if(e.type==='boss'){text('MATRIARCH',e.x,e.y-w*.45-17,12,'#653f28','center');}
@@ -100,7 +100,7 @@ function draw(){
  if(!reduced)for(const e of game.effects){ctx.save();ctx.globalAlpha=Math.min(1,e.life*2);if(e.type==='burst'){ctx.strokeStyle='#f8ffff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(e.x,e.y,e.r*(1-e.life/.32),0,Math.PI*2);ctx.stroke();}else text(e.text,e.x,e.y-(1-e.life)*30,15,e.type==='reward'?'#756021':'#854b35','center');ctx.restore();}
  if(game.state==='wave'&&!game.paused){ctx.strokeStyle='#fffdeb';ctx.lineWidth=2;ctx.beginPath();ctx.arc(aim.x,aim.y,16,0,Math.PI*2);ctx.moveTo(aim.x-24,aim.y);ctx.lineTo(aim.x-10,aim.y);ctx.moveTo(aim.x+10,aim.y);ctx.lineTo(aim.x+24,aim.y);ctx.stroke();}
  if(game.state==='ready'||game.state==='between'){
-  ctx.fillStyle='#1a352bd9';round(410,80,500,80,14);ctx.fill();text(game.state==='ready'?'A little snow. A lot to protect.':'A moment to rebuild.',660,113,24,'#f4dfac','center');text('Visit Upgrades, then start the next wave below.',660,140,14,'#d9e7ce','center');}
+  ctx.fillStyle='#1a352bd9';round(410,80,500,80,14);ctx.fill();text(game.state==='ready'?'A little snow. A lot to protect.':'A moment to rebuild.',660,113,24,'#f4dfac','center');text(game.wave===0?'Choose your opening upgrades or start wave 1.':'Visit Upgrades, then start the next wave below.',660,140,14,'#d9e7ce','center');}
  ctx.restore();
 }
 function chargeValue(){return charging?clamp((performance.now()-chargeStart)/950,0,1):0;}
@@ -141,6 +141,9 @@ function startNextWave(fromShop=false){
  if(!game.startWave())return false;cancelCharge();canvas.focus({preventScroll:true});updateHud();return true;
 }
 $('nextWave').addEventListener('click',()=>startNextWave());
+$('fieldStartWave').addEventListener('click',()=>startNextWave());
+$('fieldBuyUpgrades').addEventListener('click',()=>{if(game.state==='ready'&&!game.paused){renderShop();openDialog('shopDialog');}});
+$('gameSpeed').addEventListener('click',()=>{gameSpeed=gameSpeed%4+1;$('gameSpeed').textContent=gameSpeed+'×';$('gameSpeed').setAttribute('aria-label','Game speed '+gameSpeed+' times. Change speed');});
 $('shopNextWave').addEventListener('click',()=>startNextWave(true));
 $('pauseButton').addEventListener('click',()=>{game.togglePause();cancelCharge();updateHud();});
 for(const id of ['smokeButton','fieldSmoke'])$(id).addEventListener('click',()=>{cancelCharge();game.smoke();updateHud();});
@@ -150,11 +153,18 @@ document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',
 for(const id of ['shopDialog','manualDialog','modeDialog'])$(id).addEventListener('close',()=>{game.paused=dialogPause;last=performance.now();updateHud();if(id==='manualDialog'&&endShown&&['won','lost'].includes(game.state)&&!$('endDialog').open)$('endDialog').showModal();});
 $('endDialog').addEventListener('cancel',e=>e.preventDefault());
 $('shopButton').addEventListener('click',()=>{renderShop();openDialog('shopDialog');});
+function upgradeArt(id,title){
+ const art=document.createElement('span');art.className='upgradeArt';art.setAttribute('role','img');art.setAttribute('aria-label',title);
+ const icon={power:0,splash:1,training:2}[id];
+ if(icon!==undefined){art.style.backgroundImage='url("apiary-art/upgrade-icons.webp")';art.style.backgroundSize='300% 100%';art.style.backgroundPosition=icon*50+'% 50%';}
+ else{const bee=['bees','workers','foragers'].includes(id);art.style.backgroundImage='url("apiary-art/'+(bee?'guard-bee.svg':id==='vaporizer'?'vaporizer.svg':'hive.svg')+'")';art.style.backgroundSize=bee?'200% 100%':'contain';art.style.backgroundPosition=bee?'0% 50%':'center';}
+ return art;
+}
 function renderShop(){
  $('shopBalance').textContent=game.mode==='sandbox'?'Unlimited honey · Sandbox':game.honey.toLocaleString()+' honey';const grid=$('shopGrid');grid.replaceChildren();
  for(const [id,u] of Object.entries(UPGRADES)){
   const card=document.createElement('section');card.className='shopCard';
-  const h=document.createElement('h3');h.textContent=u.title;card.append(h);
+  const heading=document.createElement('div');heading.className='upgradeHeading';const h=document.createElement('h3');h.textContent=u.title;heading.append(upgradeArt(id,u.title),h);card.append(heading);
   const level=document.createElement('div');level.className='level';level.textContent=id==='repair'?'Service':Number.isFinite(u.max)?`Level ${game.upgrades[id]} / ${u.max}`:`Level ${game.upgrades[id]} · No limit`;card.append(level);
   const p=document.createElement('p');p.textContent=u.desc;card.append(p);
   const button=document.createElement('button');button.type='button';button.dataset.upgrade=id;
@@ -207,10 +217,12 @@ $('modeDialog').addEventListener('cancel',e=>{if(!modeChosen)e.preventDefault();
 document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{game.reset(b.dataset.mode);shopOpenedWave=-1;modeChosen=true;dialogPause=false;best=loadBest();endShown=false;lastHud='';cancelCharge();$('modeDialog').close();updateHud();draw();}));
 $('endlessButton').addEventListener('click',()=>{if(game.continueEndless()){$('endDialog').close();endShown=false;lastHud='';updateHud();draw();}});
 function updateHud(){
- const values=[game.wave,game.honey,game.score,game.living().length,game.state,game.paused,game.upgrades.vaporizer,game.smokerUsed,game.message,best,game.infestation(),!!game.brush,game.specialty,game.mode,Math.floor(game.nectarBank),...game.hives.map(h=>Math.ceil(h.hp))].join('|');
+ const values=[game.mothRaid?.phase||'',game.wave,game.honey,game.score,game.living().length,game.state,game.paused,game.upgrades.vaporizer,game.smokerUsed,game.message,best,game.infestation(),!!game.brush,game.specialty,game.mode,Math.floor(game.nectarBank),...game.hives.map(h=>Math.ceil(h.hp))].join('|');
  if(values===lastHud)return;lastHud=values;
  
  $('modeLabel').textContent=(game.mode==='sandbox'?'Sandbox · Endless':'Campaign'+(game.endless?' · Endless':''))+' · v2';
+ $('openingActions').hidden=!modeChosen||!artReady||game.wave!==0||game.state!=='ready'||game.paused;$('fieldStartWave').disabled=!modeChosen||game.paused||game.state!=='ready';$('fieldBuyUpgrades').disabled=$('fieldStartWave').disabled;
+ $('mothAlert').hidden=!game.mothRaid||game.state!=='wave';$('mothAlert').textContent=game.mothRaid?(game.mothRaid.phase==='warning'?'SURPRISE MOTH RAID!':'MOTH RAID · +'+game.mothRaid.bonus+' honey bonus'):'';
  $('nectarBank').textContent=Math.floor(game.nectarBank)+' honey gathered';
  for(const b of document.querySelectorAll('[data-hive]')){const h=game.hives[Number(b.dataset.hive)],m=game.miteCount(h);b.textContent=h.hp<=0?'Hive '+(h.id+1)+' · lost':`Hive ${h.id+1} · ${Math.ceil(h.hp)} HP · ${m} mites${m?' | Brush':' | clear'}`;b.disabled=game.state!=='wave'||game.paused||!!game.brush||!m;}
  const next=game.wave+1,plan=game.plan(next),kinds=[...new Set(plan.map(e=>TYPES[e.type].name))];
@@ -239,9 +251,10 @@ function updateHud(){
 }
 function tick(now){
  const dt=last?clamp((now-last)/1000,0,.1):0;last=now;
- if(!document.hidden&&artReady){if(!game.paused){if(!reduced)visualTime+=dt;throwFlash=Math.max(0,throwFlash-dt);}game.step(dt);updateHud();if(charging)updateCharge();draw();}
+ if(!document.hidden&&artReady){if(!game.paused){if(!reduced)visualTime+=dt*gameSpeed;throwFlash=Math.max(0,throwFlash-dt*gameSpeed);}let remaining=dt*gameSpeed;while(remaining>1e-8&&game.state==='wave'&&!game.paused){const slice=Math.min(1/60,remaining);game.step(slice);remaining-=slice;}updateHud();if(charging)updateCharge();draw();}
  requestAnimationFrame(tick);
 }
-Promise.allSettled(Object.entries(names).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();images[key]=img;img.onload=resolve;img.onerror=reject;img.src='apiary-art/'+file+'?v=3';}))).then(results=>{artReady=true;$('loading').hidden=true;if(results.some(r=>r.status==='rejected'))game.message='Some artwork could not load. You can still play with simple shapes.';resize();updateHud();});
+Promise.allSettled(Object.entries(names).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();images[key]=img;img.onload=resolve;img.onerror=reject;img.src='apiary-art/'+file+'?v=3';}))).then(results=>{artReady=true;$('loading').hidden=true;if(results.some(r=>r.status==='rejected'))game.message='Some artwork could not load. You can still play with simple shapes.';resize();lastHud='';updateHud();});
+entries.how.html+='<h4>Speed and bonus raids</h4><p>Use the 1× button at the top right to cycle through 2×, 3× and 4× game speed. Combat, bees and cooldowns all speed up together. Pauses and menus still stop the simulation. Surprise moth raids arrive on an occasional random timer during battle, with a brief warning. Their smaller, golden-highlighted moths give normal kill rewards; clearing the entire bonus swarm also earns extra honey. A raid must be cleared before the wave finishes.</p>';
 manual('how');resize();updateHud();$('modeDialog').showModal();requestAnimationFrame(tick);
 })();

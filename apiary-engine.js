@@ -37,6 +37,7 @@ class Game{
   this.enemies=[];this.projectiles=[];this.effects=[];this.guards=[];this.spawnQueue=[];this.brush=null;this.nectarBank=0;this.lastHarvest=0;this.workerTarget=null;
   this.upgrades={power:0,splash:0,bees:0,training:0,walls:0,vaporizer:0,workers:0,foragers:0,repair:0};this.specialty=null;this.cooldown=0;this.kills=0;this.nextId=1;
   this.discovered=new Set(['moth','varroa']);this.events=[];this.slowTime=0;this.smokerUsed=false;this.miteCheckIn=0;
+  this.mothRaidIn=55+this.random()*55;this.mothRaid=null;this.mothRaidSerial=0;
   this.message='Fifty waves. Three hives. Choose your opening upgrades, then defend.';
  }
  emit(type,data={}){this.events.push({type,...data});if(this.events.length>100)this.events.shift();}
@@ -118,10 +119,25 @@ class Game{
  }
  moveGuard(b,tx,ty,dt){const dx=tx-b.x,dy=ty-b.y,d=Math.hypot(dx,dy),step=1050*dt;if(d<=step){b.x=tx;b.y=ty;return true;}b.x+=dx/d*step;b.y+=dy/d*step;return false;}
  resetGuards(){this.guards.forEach(b=>{b.phase='idle';b.target=null;b.x=b.homeX;b.y=b.homeY;b.cooldown=.25+b.id*.1;});}
+ tickMothRaid(dt){
+  if(!this.mothRaid){
+   this.mothRaidIn-=dt;if(this.mothRaidIn>0)return;
+   const count=Math.min(36,14+Math.floor(this.wave*.45));this.mothRaid={id:++this.mothRaidSerial,phase:'warning',warning:1.8,pending:count,total:count,spawnIn:0,bonus:25+this.wave*2};
+   this.message='Surprise moth raid! A bonus swarm is approaching.';this.emit('mothRaid',{phase:'warning',count});return;
+  }
+  const raid=this.mothRaid;
+  if(raid.phase==='warning'){raid.warning-=dt;if(raid.warning>0)return;raid.phase='attack';this.message='Bonus moth raid! Clear the swarm for extra honey.';this.emit('mothRaid',{phase:'attack',count:raid.total});}
+  raid.spawnIn-=dt;
+  while(raid.pending>0&&raid.spawnIn<=0){const e=this.spawn('moth',(raid.total-raid.pending)%3);e.bonusRaid=raid.id;e.hp*=.55;e.max=e.hp;e.speed=Math.min(LIMITS.absoluteSpeed,e.speed*1.2);e.damage*=.65;e.radius=16;raid.pending--;raid.spawnIn+=.16;}
+  if(!raid.pending&&!this.enemies.some(e=>e.bonusRaid===raid.id&&e.hp>0)){
+   this.honey+=raid.bonus;this.score+=raid.bonus*10;this.message='Bonus moth raid cleared! +'+raid.bonus+' honey.';this.effects.push({x:630,y:180,text:'RAID CLEARED +'+raid.bonus+' HONEY',life:2,type:'reward'});this.emit('mothRaid',{phase:'cleared',bonus:raid.bonus});this.mothRaid=null;this.mothRaidIn=90+this.random()*90;
+  }
+ }
  step(dt){
   if(this.paused||this.state!=='wave')return;dt=clamp(Number.isFinite(dt)?dt:0,0,.1);if(!dt)return;
   this.time+=dt;this.elapsed+=dt;this.cooldown=Math.max(0,this.cooldown-dt);this.slowTime=Math.max(0,this.slowTime-dt);
   if(this.brush){const b=this.brush;b.t+=dt;const h=this.hives[b.hive];if(!b.cleared&&b.t>=b.duration*.55){h.mites=0;h.cleanTime=5;b.cleared=true;this.message=`Hive ${h.id+1} brushed clear. Watch for mites returning.`;this.effects.push({x:h.x,y:h.y-25,text:'MITES CLEARED',life:1.1,type:'clean'});}if(b.t>=b.duration)this.brush=null;}
+  this.tickMothRaid(dt);
   while(this.spawnQueue.length&&this.spawnQueue[0].at<=this.elapsed){const s=this.spawnQueue.shift();this.spawn(s.type,s.lane);}
   for(const h of this.living())h.cleanTime=Math.max(0,h.cleanTime-dt);
   this.miteCheckIn-=dt;
@@ -157,7 +173,7 @@ class Game{
   this.nectarBank=Math.min(this.upgrades.foragers*20,this.nectarBank+this.upgrades.foragers*.32*dt);
   this.enemies=this.enemies.filter(e=>e.hp>0);this.effects.forEach(e=>e.life-=dt);this.effects=this.effects.filter(e=>e.life>0);
   if(!this.living().length){this.state='lost';this.brush=null;this.message='The apiary fell. Rethink your build and try again.';this.emit('end',{won:false});return;}
-  if(!this.spawnQueue.length&&!this.enemies.length){
+  if(!this.spawnQueue.length&&!this.enemies.length&&!this.mothRaid){
    this.projectiles=[];this.brush=null;this.resetGuards();this.paused=false;this.lastHarvest=Math.floor(this.nectarBank);const bonus=20+this.wave*3+this.living().length*5+this.lastHarvest;this.honey+=bonus;this.score+=bonus*10;
    if(this.wave===LIMITS.waves&&!this.endless){this.state='won';this.message='All fifty waves survived. The apiary stands!';this.emit('end',{won:true});}
    else{this.state='between';this.message=`Wave ${this.wave} cleared! +${bonus} honey${this.lastHarvest?' (including '+this.lastHarvest+' foraged)':''}. Study the next raid before upgrading.`;}

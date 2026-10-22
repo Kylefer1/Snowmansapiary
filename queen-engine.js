@@ -12,20 +12,27 @@ const WEAPONS={
   propolis:{name:'Propolis',description:'Leave resin pools that slow pursuers and wear them down.',color:'#b78645'},
   orbit:{name:'Orbiting Bees',description:'A living ring of defenders damages nearby enemies.',color:'#e8d37b'},
   wing:{name:'Wingbeat',description:'Release a sweeping pulse that damages and pushes enemies away.',color:'#b6dce1'},
+  lance:{name:'Stinger Lance',description:'Fire a narrow spear that pierces a line of enemies. Higher ranks add damage and piercing.',color:'#e5be67'},
+  disc:{name:'Wax Disc',description:'Throw a spinning wax disc that curves back to you. It can hit each enemy once going out and once returning.',color:'#edc16c'},
+  bolt:{name:'Honey Bolt',description:'Arc lightning between nearby enemies. Higher ranks add damage and more jumps.',color:'#a2dfeb'},
   pickup:{name:'Nectar Reach',description:'Draw pickups from farther away. Each rank adds 25% of your starting reach, up to 2.25 times the reach at rank five.',color:'#b6df9a',utility:true}
 };
 const FUSIONS={
   royal:{name:'Royal Guard',pair:['guard','jelly'],description:'A piercing royal volley with stronger recovery.',color:'#ffdb84'},
   bloom:{name:'Sticky Bloom',pair:['pollen','propolis'],description:'Pollen explosions leave broad, damaging resin pools.',color:'#daa65b'},
-  shield:{name:'Swarm Shield',pair:['orbit','wing'],description:'A wider swarm lashes nearby enemies and pushes them back.',color:'#b8e5da'}
+  shield:{name:'Swarm Shield',pair:['orbit','wing'],description:'A wider swarm lashes nearby enemies and pushes them back.',color:'#b8e5da'},
+  storm:{name:'Thunder Lance',pair:['lance','bolt'],description:'Piercing lances chain lightning through the targets they strike.',color:'#a8e8f0'}
 };
+const CHARACTERS={queen:{name:'Queen Bee',description:'Lead with loyal defenders. Starts with Guard Bees at rank two.',weapon:'guard',rank:2},snowman:{name:'Snowman',description:'Protect the meadow with snow. Starts with Wingbeat as a volley of snowballs.',weapon:'wing',rank:1}};
+function weaponInfo(id,character='queen'){if(id==='wing'&&character==='snowman')return {...WEAPONS.wing,name:'Wingbeat: Snowballs',description:'Throw a fan of snowballs toward the nearest threat. Higher ranks add snowballs, damage and a stronger shove.'};return WEAPONS[id];}
+function fusionInfo(id,character='queen'){if(id==='shield'&&character==='snowman')return {...FUSIONS.shield,name:'Blizzard Swarm',description:'A wide ring of guard bees pushes enemies away while the snowman keeps throwing powerful snowball volleys.'};return FUSIONS[id];}
 const ENEMIES={
   mite:{name:'Rust Mite',description:'A direct pursuer that grows dangerous in crowds.',color:'#a94936',hp:21,speed:69,r:12,xp:1,behavior:'chase'},
-  varroa:{name:'Varroa Mite',description:'A quick crawling mite. Its bite briefly slows the queen, so keep clear of clusters.',color:'#a46942',hp:18,speed:112,r:10,xp:2,behavior:'scuttle'},
+  varroa:{name:'Varroa Mite',description:'A quick crawling mite. Contact briefly slows your defender in this game, so keep clear of clusters.',color:'#a46942',hp:18,speed:112,r:10,xp:2,behavior:'scuttle'},
   moth:{name:'Ash Moth',description:'Weaves through the meadow on a swaying flight path.',color:'#ada18b',hp:27,speed:83,r:14,xp:2,behavior:'weave'},
   beetle:{name:'Ironback Beetle',description:'A slow armored shell absorbs some incoming damage.',color:'#687373',hp:72,speed:43,r:20,xp:4,behavior:'armor',armor:.28},
   wasp:{name:'Lance Wasp',description:'Stops and sights its target before a fast charge.',color:'#cc973d',hp:39,speed:87,r:15,xp:3,behavior:'charge'},
-  spitter:{name:'Sap Spitter',description:'Keeps its distance and launches globs of corrosive sap.',color:'#95ad64',hp:40,speed:56,r:17,xp:3,behavior:'ranged'},
+  spitter:{name:'Sap Spitter',description:'Keeps its distance and launches glowing red sap. Dodge the pulsing red shots.',color:'#95ad64',hp:40,speed:56,r:17,xp:3,behavior:'ranged'},
   splitter:{name:'Brood Carrier',description:'Breaks apart into a cluster of fast broodlings.',color:'#957456',hp:65,speed:54,r:21,xp:4,behavior:'split'},
   gnat:{name:'Needle Gnat',description:'Small flanking attackers gather in quick-moving packs.',color:'#b6b5a3',hp:12,speed:119,r:8,xp:1,behavior:'swarm'},
   broodling:{name:'Broodling',description:'A tiny, fragile attacker released by a carrier.',color:'#b68e6d',hp:11,speed:103,r:8,xp:1,behavior:'skitter'},
@@ -40,15 +47,15 @@ const dist2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 const finite=(v,f=0)=>Number.isFinite(v)?v:f;
 function segmentDistance2(x,y,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy,t=l?clamp(((x-ax)*dx+(y-ay)*dy)/l,0,1):0;return (x-ax-dx*t)**2+(y-ay-dy*t)**2;}
 class Game{
-  constructor({random=Math.random,stage=1}={}){
+  constructor({random=Math.random,stage=1,character='queen'}={}){
     this.random=typeof random==='function'?random:Math.random;this.stage=STAGES[stage]?Number(stage):1;this.stageInfo=STAGES[this.stage];
-    this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2};
+    this.character=CHARACTERS[character]?character:'queen';this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2,throwTime:0};
     this.time=0;this.wave=1;this.level=1;this.xp=0;this.need=8;this.kills=0;
-    this.weapons={guard:1,jelly:0,pollen:0,propolis:0,orbit:0,wing:0,pickup:0};this.fused={royal:false,bloom:false,shield:false};
+    this.weapons=Object.fromEntries(Object.keys(WEAPONS).map(id=>[id,0]));this.weapons[CHARACTERS[this.character].weapon]=CHARACTERS[this.character].rank;this.fused={royal:false,bloom:false,shield:false,storm:false};
     this.enemies=[];this.hives=[];this.shots=[];this.drops=[];this.zones=[];this.events=[];this.options=[];this.pendingReward=null;
     this.superWeaponTime=0;this.swarmBees=[];this._superTimer=0;this._swarmOrigin={x:1300,y:1300};this._hiveClock=45;this._hiveTravel=0;
     this.pressureTime=0;this._quietTime=0;this._pressureCooldown=30;this._recentKills=[];this.outbreakState='idle';this.outbreakTime=0;this._outbreakNext=this._range(540,565);this._outbreakSpawn=0;this._outbreakBudget=0;this.viewport={width:1000,height:700};
-    this.dashCooldown=0;this.input={x:0,y:0,aimX:0,aimY:0};this.endless=false;this.campaignComplete=false;this._nextId=1;this._spawn=.3;this._pity=0;this._bossWaves=new Set();this._timers={guard:0,pollen:1.2,propolis:1,wing:1};this._resumeState='playing';this._dashTime=0;this._dashX=0;this._dashY=-1;
+    this.dashCooldown=0;this.input={x:0,y:0,aimX:0,aimY:0};this.endless=false;this.campaignComplete=false;this._nextId=1;this._spawn=.3;this._pity=0;this._bossWaves=new Set();this._timers={guard:0,pollen:1.2,propolis:1,wing:this.character==='snowman'?0:1,lance:.2,disc:.8,bolt:.5};this._resumeState='playing';this._dashTime=0;this._dashX=0;this._dashY=-1;
   }
   _random(){return clamp(finite(this.random(),.5),0,.999999999);}
   _range(a,b){return a+(b-a)*this._random();}
@@ -71,7 +78,7 @@ class Game{
     let left=dt;while(left>1e-8&&this.state==='playing'){const slice=Math.min(left,1/60);this._tick(slice);left-=slice;}
   }
   _tick(dt){
-    const q=this.queen;q.px=q.x;q.py=q.y;this.time+=dt;q.inv=Math.max(0,q.inv-dt);this.dashCooldown=Math.max(0,this.dashCooldown-dt);this.superWeaponTime=Math.max(0,this.superWeaponTime-dt);
+    const q=this.queen;q.px=q.x;q.py=q.y;this.time+=dt;q.inv=Math.max(0,q.inv-dt);q.throwTime=Math.max(0,q.throwTime-dt);this.dashCooldown=Math.max(0,this.dashCooldown-dt);this.superWeaponTime=Math.max(0,this.superWeaponTime-dt);
     q.slowTime=Math.max(0,(q.slowTime||0)-dt);const raw=Math.hypot(this.input.x,this.input.y),n=Math.max(1,raw),speed=192*(q.slowTime>0?.72:1);
     const tx=this.input.x/n*speed,ty=this.input.y/n*speed,ease=1-Math.exp(-13*dt);
     q.vx+=(tx-q.vx)*ease;q.vy+=(ty-q.vy)*ease;
@@ -239,9 +246,16 @@ class Game{
     }
     if((w.pollen||this.fused.bloom)&&this._timers.pollen<=0){const target=this._nearest(q,750);if(target){const a=Math.atan2(target.y-q.y,target.x-q.x);this._addShot({type:'pollen',x:q.x,y:q.y,vx:Math.cos(a)*330,vy:Math.sin(a)*330,angle:a,life:2.4,damage:this.fused.bloom?105:28+w.pollen*13,pierce:1,blast:this.fused.bloom?128:52+w.pollen*11,sticky:this.fused.bloom,color:'#e7b45b'});this._timers.pollen=this.fused.bloom?1.5:Math.max(1.7,3-w.pollen*.15);}}
     if(w.propolis&&!this.fused.bloom&&this._timers.propolis<=0){this._zone(q.x,q.y,36+w.propolis*8,4,5+w.propolis*4,'propolis',.48);this._timers.propolis=2.5;}
-    if(w.wing&&!this.fused.shield&&this._timers.wing<=0){const r=80+w.wing*17;this._burst(q.x,q.y,r,w.wing*17);for(const e of this.enemies){const d=Math.hypot(e.x-q.x,e.y-q.y);if(e.hp>0&&d<r+e.r&&d>0){e.x=clamp(e.x+(e.x-q.x)/d*65,10,WORLD-10);e.y=clamp(e.y+(e.y-q.y)/d*65,10,WORLD-10);}}this._timers.wing=3.7;}
+    if(this.character==='snowman'&&(w.wing||this.fused.shield)&&this._timers.wing<=0){const target=this._nearest(q,850);if(target){this._snowballs(target,this.fused.shield?5:w.wing);this._timers.wing=this.fused.shield?1.05:Math.max(1.25,1.9-w.wing*.1);}}
+    else if(w.wing&&!this.fused.shield&&this._timers.wing<=0){const r=80+w.wing*17;this._burst(q.x,q.y,r,w.wing*17);for(const e of this.enemies){const d=Math.hypot(e.x-q.x,e.y-q.y);if(e.hp>0&&d<r+e.r&&d>0){e.x=clamp(e.x+(e.x-q.x)/d*65,10,WORLD-10);e.y=clamp(e.y+(e.y-q.y)/d*65,10,WORLD-10);}}this._timers.wing=3.7;}
+    if((w.lance||this.fused.storm)&&this._timers.lance<=0){const target=this._nearest(q,950);if(target){const a=this._aimAngle(target);this._addShot({type:'lance',x:q.x,y:q.y,vx:Math.cos(a)*680,vy:Math.sin(a)*680,angle:a,life:1.7,damage:this.fused.storm?95:26+w.lance*14,pierce:this.fused.storm?8:1+w.lance,r:4,chain:this.fused.storm?4:0,color:this.fused.storm?'#b5eff4':'#e8bc62'});this._timers.lance=this.fused.storm?1.25:Math.max(1.45,2.4-w.lance*.14);}}
+    if(w.disc&&this._timers.disc<=0){const target=this._nearest(q,700);if(target){const a=this._aimAngle(target);this._addShot({type:'disc',x:q.x,y:q.y,vx:Math.cos(a)*310,vy:Math.sin(a)*310,angle:a,life:3,age:0,returning:false,damage:15+w.disc*12,pierce:9999,r:12,color:'#e3bd6e'});this._timers.disc=Math.max(1.9,3.8-w.disc*.25);}}
+    if(w.bolt&&!this.fused.storm&&this._timers.bolt<=0){const target=this._nearest(q,500);if(target){this._chainLightning(q,target,1+w.bolt,15+w.bolt*11);this._timers.bolt=Math.max(1.7,3.4-w.bolt*.22);}}
     if(w.orbit||this.fused.shield){const count=this.fused.shield?9:w.orbit+1,r=this.fused.shield?104:64;for(let i=0;i<count;i++){const a=this.time*2.5+i*TAU/count,p={x:q.x+Math.cos(a)*r,y:q.y+Math.sin(a)*r};for(const e of this._targets()){if(e.hp>0&&dist2(e,p)<(e.r+13)**2){this._damage(e,(this.fused.shield?115:20+w.orbit*10)*dt);if(this.fused.shield&&e.type!=='wildHive'){const d=Math.hypot(e.x-q.x,e.y-q.y)||1;e.x+=(e.x-q.x)/d*95*dt;e.y+=(e.y-q.y)/d*95*dt;}}}}}
   }
+  _aimAngle(target){return Math.hypot(this.input.aimX,this.input.aimY)>.18?Math.atan2(this.input.aimY,this.input.aimX):Math.atan2(target.y-this.queen.y,target.x-this.queen.x);}
+  _snowballs(target,rank){const q=this.queen,angle=this._aimAngle(target),count=3+Math.floor(rank/2);q.throwAngle=angle;q.throwTime=.42;for(let i=0;i<count;i++){const a=angle+(i-(count-1)/2)*.16;this._addShot({type:'snowball',x:q.x,y:q.y,vx:Math.cos(a)*400,vy:Math.sin(a)*400,angle:a,life:2.2,damage:18+rank*12,pierce:1,r:7,knockback:35+rank*5,color:'#dceef3'});}this._event('throw',q.x,q.y,{angle});}
+  _chainLightning(origin,first,count,damage,alreadyHit){const used=new Set(alreadyHit||[]);let target=first,from=origin;for(let i=0;i<count&&target;i++){if(target.hp<=0||used.has(target.id))break;used.add(target.id);this._event('lightning',from.x,from.y,{endX:target.x,endY:target.y,color:'#b6edf1',radius:7});this._damage(target,damage*(1-i*.09));from=target;target=this._nearest(from,210,used);}return used;}
   _zone(x,y,r,life,damage,kind,slow=1){if(this.zones.length>=MAX_ZONES)this.zones.shift();this.zones.push({id:this._nextId++,x,y,r,life,max:life,damage,kind,type:kind,slow:slow<1,slowFactor:slow,color:kind==='bloom'?'#dcb164':'#a47946'});}
   _burst(x,y,r,damage,sticky=false){this._event('burst',x,y,{radius:r,color:sticky?'#dcb164':'#f2d590'});for(const e of [...this._targets()])if(e.hp>0&&dist2(e,{x,y})<(r+e.r)**2)this._damage(e,damage);this._zone(x,y,r,sticky?3.8:.3,sticky?29:0,sticky?'bloom':'pulse',sticky?.43:1);}
   _enemies(dt){
@@ -267,15 +281,16 @@ class Game{
       if(q.inv<=0&&segmentDistance2(q.x,q.y,e.px,e.py,e.x,e.y)<(e.r+13)**2){q.hp-=e.outbreak?2:e.boss?24:e.type==='gnat'||e.type==='varroa'?6:10;if(e.type==='varroa')q.slowTime=.65;q.inv=.64;this._event('hit',q.x,q.y,{color:'#f3cf85',radius:18,player:true});}
     }
   }
-  _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*205,vy:Math.sin(a)*205,angle:a,life:4.2,damage:e.boss?14:9,pierce:1,r:6,color:'#b9ca73'});}
+  _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*205,vy:Math.sin(a)*205,angle:a,life:4.2,damage:e.boss?14:9,pierce:1,r:6,color:'#ff4545'});}
   _projectiles(dt){
     for(const s of this.shots){
       if(s.life<=0)continue;s.px=s.x;s.py=s.y;s.life-=dt;
+      if(s.type==='disc'){s.age+=dt;if(!s.returning&&s.age>=.65){s.returning=true;s.hit.clear();}if(s.returning){const dx=this.queen.x-s.x,dy=this.queen.y-s.y,n=Math.hypot(dx,dy)||1;if(n<20){s.life=0;continue;}const ease=1-Math.exp(-13*dt);s.vx+=(dx/n*440-s.vx)*ease;s.vy+=(dy/n*440-s.vy)*ease;}else{const a=Math.atan2(s.vy,s.vx)+dt*.8;s.vx=Math.cos(a)*310;s.vy=Math.sin(a)*310;}s.angle=Math.atan2(s.vy,s.vx);}
       if(s.homing){let target=this._targets().find(e=>e.id===s.targetId&&e.hp>0&&!s.hit.has(e.id));if(!target){target=this._nearest(s,850,s.hit);if(target)s.targetId=target.id;}if(target){const a=Math.atan2(target.y-s.y,target.x-s.x),speed=Math.hypot(s.vx,s.vy)||520;s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.angle=a;}}
       s.x+=s.vx*dt;s.y+=s.vy*dt;
-      if(s.faction==='enemy'){const q=this.queen;if(q.inv<=0&&segmentDistance2(q.x,q.y,s.px,s.py,s.x,s.y)<(13+s.r)**2){q.hp-=s.damage;q.inv=.64;s.life=0;this._event('hit',q.x,q.y,{player:true,color:'#b9ca73',radius:16});}continue;}
+      if(s.faction==='enemy'){const q=this.queen;if(q.inv<=0&&segmentDistance2(q.x,q.y,s.px,s.py,s.x,s.y)<(13+s.r)**2){q.hp-=s.damage;q.inv=.64;s.life=0;this._event('hit',q.x,q.y,{player:true,color:'#ff4545',radius:16});}continue;}
       const hits=this._targets().filter(e=>e.hp>0&&!s.hit.has(e.id)&&segmentDistance2(e.x,e.y,s.px,s.py,s.x,s.y)<(e.r+s.r)**2).sort((a,b)=>dist2(a,{x:s.px,y:s.py})-dist2(b,{x:s.px,y:s.py}));
-      for(const e of hits){if(e.hp<=0)continue;s.hit.add(e.id);if(s.blast){this._burst(e.x,e.y,s.blast,s.damage,s.sticky);s.life=0;break;}this._damage(e,s.damage);if(--s.pierce<=0){s.life=0;break;}}
+      for(const e of hits){if(e.hp<=0)continue;s.hit.add(e.id);if(s.blast){this._burst(e.x,e.y,s.blast,s.damage,s.sticky);s.life=0;break;}this._damage(e,s.damage);if(s.chain){const next=this._nearest(e,210,s.hit);if(next){const chained=this._chainLightning(e,next,s.chain,s.damage*.55,s.hit);for(const id of chained)s.hit.add(id);}}if(s.knockback&&e.type!=='wildHive'&&e.hp>0){e.x=clamp(e.x+Math.cos(s.angle)*s.knockback,10,WORLD-10);e.y=clamp(e.y+Math.sin(s.angle)*s.knockback,10,WORLD-10);}if(s.type==='snowball')this._event('snowhit',e.x,e.y,{color:'#dceef3'});if(--s.pierce<=0){s.life=0;break;}}
       if(s.life<=0&&s.blast&&!s.hit.size)this._burst(s.x,s.y,s.blast,s.damage,s.sticky);
     }
   }
@@ -293,7 +308,7 @@ class Game{
   _checkLevel(){
     if(this.state!=='playing'||this.xp<this.need)return false;
     this.xp-=this.need;this.level++;this.need=8+(this.level-1)*4+Math.floor((this.level-1)**1.35);
-    this.options=this._shuffle(this._eligible()).slice(0,3).map(id=>({id,name:WEAPONS[id].name,description:(this.weapons[id]?`Rank ${this.weapons[id]+1}/5. `:'New ability. ')+WEAPONS[id].description,color:WEAPONS[id].color,rank:this.weapons[id]+1}));
+    this.options=this._shuffle(this._eligible()).slice(0,3).map(id=>({id,name:weaponInfo(id,this.character).name,description:(this.weapons[id]?`Rank ${this.weapons[id]+1}/5. `:'New ability. ')+weaponInfo(id,this.character).description,color:WEAPONS[id].color,rank:this.weapons[id]+1}));
     if(this.options.length<3)this.options.push({id:'reserves',name:'Royal Reserves',description:'Gain 12 maximum health and recover 35 health.',color:'#ddb1b7'});
     if(this.options.length<3)this.options.push({id:'recovery',name:'Meadow Recovery',description:'Recover half your maximum health.',color:'#a9bf81'});
     this.state='levelup';return true;
@@ -308,8 +323,8 @@ class Game{
     if(this.state!=='playing')return false;
     if(drop){const index=this.drops.indexOf(drop);if(index>=0)this.drops.splice(index,1);}
     const fusion=Object.keys(FUSIONS).filter(k=>!this.fused[k]&&FUSIONS[k].pair.every(p=>this.weapons[p]>=5));
-    if(fusion.length){const id=fusion[Math.floor(this._random()*fusion.length)],def=FUSIONS[id];this.pendingReward={id,name:def.name,description:def.description,fusion:true,color:def.color};}
-    else{const eligible=this._eligible(),owned=eligible.filter(k=>this.weapons[k]>0),pool=owned.length?owned:eligible;if(pool.length){const id=pool[Math.floor(this._random()*pool.length)];this.pendingReward={id,name:WEAPONS[id].name,description:`Bonus rank ${this.weapons[id]+1}/5 and 20 health.`,fusion:false,color:WEAPONS[id].color};}else this.pendingReward={id:'cache',name:'Royal Cache',description:'Gain 15 maximum health and recover 50 health.',color:'#f1d091'};}
+    if(fusion.length){const id=fusion[Math.floor(this._random()*fusion.length)],def=fusionInfo(id,this.character);this.pendingReward={id,name:def.name,description:def.description,fusion:true,color:def.color};}
+    else{const eligible=this._eligible(),owned=eligible.filter(k=>this.weapons[k]>0),pool=owned.length?owned:eligible;if(pool.length){const id=pool[Math.floor(this._random()*pool.length)];this.pendingReward={id,name:weaponInfo(id,this.character).name,description:`Bonus rank ${this.weapons[id]+1}/5 and 20 health.`,fusion:false,color:WEAPONS[id].color};}else this.pendingReward={id:'cache',name:'Royal Cache',description:'Gain 15 maximum health and recover 50 health.',color:'#f1d091'};}
     this.state='chest';this._event('chest',drop?drop.x:this.queen.x,drop?drop.y:this.queen.y,{reward:this.pendingReward.name,fusion:!!this.pendingReward.fusion});return true;
   }
   claimReward(){
@@ -321,5 +336,5 @@ class Game{
   }
   continueEndless(){if(this.state!=='won')return false;this.endless=true;this.state='playing';this.queen.hp=Math.max(this.queen.hp,this.queen.max*.6);return true;}
 }
-return {Game,WEAPONS,FUSIONS,ENEMIES,STAGES,WORLD,segmentDistance2};
+return {Game,WEAPONS,FUSIONS,ENEMIES,STAGES,CHARACTERS,weaponInfo,fusionInfo,WORLD,segmentDistance2};
 });

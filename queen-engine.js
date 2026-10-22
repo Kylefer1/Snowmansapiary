@@ -47,9 +47,9 @@ const dist2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 const finite=(v,f=0)=>Number.isFinite(v)?v:f;
 function segmentDistance2(x,y,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy,t=l?clamp(((x-ax)*dx+(y-ay)*dy)/l,0,1):0;return (x-ax-dx*t)**2+(y-ay-dy*t)**2;}
 class Game{
-  constructor({random=Math.random,stage=1,character='queen'}={}){
+  constructor({random=Math.random,stage=1,character='queen',autoRecovery=false}={}){
     this.random=typeof random==='function'?random:Math.random;this.stage=STAGES[stage]?Number(stage):1;this.stageInfo=STAGES[this.stage];
-    this.character=CHARACTERS[character]?character:'queen';this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2,throwTime:0};
+    this.character=CHARACTERS[character]?character:'queen';this.autoRecovery=!!autoRecovery;this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2,throwTime:0};
     this.time=0;this.wave=1;this.level=1;this.xp=0;this.need=8;this.kills=0;
     this.weapons=Object.fromEntries(Object.keys(WEAPONS).map(id=>[id,0]));this.weapons[CHARACTERS[this.character].weapon]=CHARACTERS[this.character].rank;this.fused={royal:false,bloom:false,shield:false,storm:false};
     this.enemies=[];this.hives=[];this.shots=[];this.drops=[];this.zones=[];this.events=[];this.options=[];this.pendingReward=null;
@@ -305,18 +305,43 @@ class Game{
   }
   _eligible(){return Object.keys(WEAPONS).filter(k=>this.weapons[k]<5&&!Object.keys(FUSIONS).some(f=>this.fused[f]&&FUSIONS[f].pair.includes(k)));}
   _shuffle(array){for(let i=array.length-1;i>0;i--){const j=Math.floor(this._random()*(i+1));[array[i],array[j]]=[array[j],array[i]];}return array;}
-  _checkLevel(){
-    if(this.state!=='playing'||this.xp<this.need)return false;
-    this.xp-=this.need;this.level++;this.need=8+(this.level-1)*4+Math.floor((this.level-1)**1.35);
-    this.options=this._shuffle(this._eligible()).slice(0,3).map(id=>({id,name:weaponInfo(id,this.character).name,description:(this.weapons[id]?`Rank ${this.weapons[id]+1}/5. `:'New ability. ')+weaponInfo(id,this.character).description,color:WEAPONS[id].color,rank:this.weapons[id]+1}));
+  _upgradeOption(id){const currentRank=this.weapons[id],rank=currentRank+1,info=weaponInfo(id,this.character);return {id,name:info.name,currentRank,rank,description:`${rank===5?'Reach maximum rank.':`Gain rank ${rank}.`} ${info.description}`,color:info.color};}
+  refreshUpgradeOptions(){
+    if(this.state!=='levelup')return this.options;
+    const eligible=this._eligible(),valid=new Set(eligible),ids=[...new Set(this.options.filter(o=>WEAPONS[o.id]&&valid.has(o.id)).map(o=>o.id))].slice(0,3);
+    if(ids.length<Math.min(3,eligible.length))for(const id of this._shuffle(eligible.filter(id=>!ids.includes(id)))){if(ids.length>=3)break;ids.push(id);}
+    this.options=ids.map(id=>this._upgradeOption(id));
     if(this.options.length<3)this.options.push({id:'reserves',name:'Royal Reserves',description:'Gain 12 maximum health and recover 35 health.',color:'#ddb1b7'});
     if(this.options.length<3)this.options.push({id:'recovery',name:'Meadow Recovery',description:'Recover half your maximum health.',color:'#a9bf81'});
-    this.state='levelup';return true;
+    return this.options;
+  }
+  _applyRecovery(id){const q=this.queen;if(id==='reserves'){q.max+=12;q.hp=Math.min(q.max,q.hp+35);return true;}if(id==='recovery'){q.hp=Math.min(q.max,q.hp+q.max*.5);return true;}return false;}
+  _autoRecoveryLevel(){
+    if(!this.autoRecovery||this.state!=='levelup'||!this.options.length||this.options.some(o=>!['reserves','recovery'].includes(o.id)))return false;
+    const q=this.queen,heal=Math.min(q.max-q.hp,q.max*.5),reserves=Math.min(q.max+12-q.hp,35),id=heal>reserves?'recovery':'reserves';
+    this._applyRecovery(id);this.options=[];this.state='playing';this._event('autoRecovery',q.x,q.y,{reward:id,source:'levelup'});return true;
+  }
+  setAutoRecovery(value){
+    this.autoRecovery=!!value;
+    if(this.autoRecovery&&this.state==='levelup'){this.refreshUpgradeOptions();if(this._autoRecoveryLevel())this._checkLevel();}
+    else if(this.autoRecovery&&this.state==='chest'&&this.pendingReward?.id==='cache'&&!this.pendingReward.fusion)this.claimReward();
+    return this.autoRecovery;
+  }
+  _checkLevel(){
+    if(this.state!=='playing'||this.xp<this.need)return false;
+    do{
+      this.xp-=this.need;this.level++;this.need=8+(this.level-1)*4+Math.floor((this.level-1)**1.35);
+      this.options=this._shuffle(this._eligible()).slice(0,3).map(id=>this._upgradeOption(id));this.state='levelup';this.refreshUpgradeOptions();
+      if(!this._autoRecoveryLevel())break;
+    }while(this.xp>=this.need);
+    return true;
   }
   _applyWeapon(id){if(!WEAPONS[id]||!this._eligible().includes(id))return false;this.weapons[id]++;if(id==='jelly'){this.queen.max+=8;this.queen.hp=Math.min(this.queen.max,this.queen.hp+16);}return true;}
-  chooseUpgrade(id){
-    if(this.state!=='levelup'||!this.options.some(o=>o.id===id))return false;
-    if(id==='reserves'){this.queen.max+=12;this.queen.hp=Math.min(this.queen.max,this.queen.hp+35);}else if(id==='recovery')this.queen.hp=Math.min(this.queen.max,this.queen.hp+this.queen.max*.5);else if(!this._applyWeapon(id))return false;
+  chooseUpgrade(id,expectedCurrentRank){
+    if(this.state!=='levelup')return false;
+    this.refreshUpgradeOptions();if(!this.options.some(o=>o.id===id))return false;
+    if(WEAPONS[id]&&expectedCurrentRank!==undefined&&expectedCurrentRank!==this.weapons[id])return false;
+    if(!this._applyRecovery(id)&&!this._applyWeapon(id))return false;
     this.options=[];this.state='playing';this._checkLevel();return true;
   }
   collectChest(drop){
@@ -325,13 +350,14 @@ class Game{
     const fusion=Object.keys(FUSIONS).filter(k=>!this.fused[k]&&FUSIONS[k].pair.every(p=>this.weapons[p]>=5));
     if(fusion.length){const id=fusion[Math.floor(this._random()*fusion.length)],def=fusionInfo(id,this.character);this.pendingReward={id,name:def.name,description:def.description,fusion:true,color:def.color};}
     else{const eligible=this._eligible(),owned=eligible.filter(k=>this.weapons[k]>0),pool=owned.length?owned:eligible;if(pool.length){const id=pool[Math.floor(this._random()*pool.length)];this.pendingReward={id,name:weaponInfo(id,this.character).name,description:`Bonus rank ${this.weapons[id]+1}/5 and 20 health.`,fusion:false,color:WEAPONS[id].color};}else this.pendingReward={id:'cache',name:'Royal Cache',description:'Gain 15 maximum health and recover 50 health.',color:'#f1d091'};}
-    this.state='chest';this._event('chest',drop?drop.x:this.queen.x,drop?drop.y:this.queen.y,{reward:this.pendingReward.name,fusion:!!this.pendingReward.fusion});return true;
+    this.state='chest';this._event('chest',drop?drop.x:this.queen.x,drop?drop.y:this.queen.y,{reward:this.pendingReward.name,fusion:!!this.pendingReward.fusion});
+    if(this.autoRecovery&&this.pendingReward.id==='cache')this.claimReward();return true;
   }
   claimReward(){
     if(this.state!=='chest'||!this.pendingReward)return false;const reward=this.pendingReward;
     if(reward.fusion){this.fused[reward.id]=true;this.queen.hp=Math.min(this.queen.max,this.queen.hp+30);}
-    else if(reward.id==='cache'){this.queen.max+=15;this.queen.hp=Math.min(this.queen.max,this.queen.hp+50);}
-    else{this._applyWeapon(reward.id);this.queen.hp=Math.min(this.queen.max,this.queen.hp+20);}
+    else if(reward.id==='cache'){this.queen.max+=15;this.queen.hp=Math.min(this.queen.max,this.queen.hp+50);if(this.autoRecovery)this._event('autoRecovery',this.queen.x,this.queen.y,{reward:'cache',source:'chest'});}
+    else{if(!this._applyWeapon(reward.id))return false;this.queen.hp=Math.min(this.queen.max,this.queen.hp+20);}
     this.pendingReward=null;this.state='playing';this._checkLevel();return true;
   }
   continueEndless(){if(this.state!=='won')return false;this.endless=true;this.state='playing';this.queen.hp=Math.max(this.queen.hp,this.queen.max*.6);return true;}

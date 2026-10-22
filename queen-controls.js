@@ -217,7 +217,7 @@
       for(const id of points)try{this.canvas.releasePointerCapture(id)}catch(_){}
     }
 
-    setZoom(value){if(!Number.isFinite(value))return;this.zoom=Math.max(.75,Math.min(1.35,value));this.onZoom(this.zoom);}
+    setZoom(value){if(!Number.isFinite(value))return;this.zoom=Math.max(.5,Math.min(1.35,value));this.onZoom(this.zoom);}
 
     setEnabled(value) {
       this.enabled = !this.destroyed && !!value;

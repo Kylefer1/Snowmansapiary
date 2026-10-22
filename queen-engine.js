@@ -61,7 +61,13 @@ class Game{
   _range(a,b){return a+(b-a)*this._random();}
   _event(type,x,y,extra={}){if(this.events.length<180)this.events.push({type,x,y,...extra});}
   drainEvents(){const out=this.events;this.events=[];return out;}
-  setViewport(width,height){this.viewport.width=clamp(finite(width,1000),280,2200);this.viewport.height=clamp(finite(height,700),240,2200);}
+  setViewport(width,height,x,y,zoom=1){this.viewport={width:clamp(finite(width,1000),280,6000),height:clamp(finite(height,700),240,6000),x:Number.isFinite(x)?x:null,y:Number.isFinite(y)?y:null,zoom:clamp(finite(zoom,1),.5,1.35)};}
+  _swarmView(){const v=this.viewport;return {x:v.x??this.queen.x,y:v.y??this.queen.y,width:v.width,height:v.height,zoom:v.zoom||1};}
+  _visibleToSwarm(e){const v=this._swarmView();return Math.abs(e.x-v.x)<=v.width/2&&Math.abs(e.y-v.y)<=v.height/2;}
+  swarmHiveMarker(view=this._swarmView()){
+    const z=view.zoom||1,origin=this._swarmOrigin,left=view.x-view.width/2+44/z,right=view.x+view.width/2-44/z,top=view.y-view.height/2+Math.min(165/z,view.height*.42),bottom=view.y+view.height/2-Math.min(90/z,view.height*.25);
+    const x=clamp(origin.x,left,right),y=clamp(origin.y,top,bottom);return {x,y,pinned:x!==origin.x||y!==origin.y};
+  }
   pickupRadius(type='xp'){return (type==='chest'?100:155)*(1+(this.weapons.pickup||0)*.25);}
   start(){if(this.state==='ready'){this.state='playing';this._event('wave',this.queen.x,this.queen.y,{wave:1});}return this;}
   pause(){if(this.state==='playing'){this._resumeState=this.state;this.state='paused';}return this.state;}
@@ -222,7 +228,7 @@ class Game{
     this._event('power',this.queen.x,this.queen.y,{originX:this._swarmOrigin.x,originY:this._swarmOrigin.y,color:'#baf4da',radius:45});
   }
   _swarm(dt){
-    if(!this.swarmBees.length)return;const living=new Map(this.enemies.filter(e=>e.hp>0).map(e=>[e.id,e]));
+    if(!this.swarmBees.length)return;const living=new Map(this.enemies.filter(e=>e.hp>0&&this._visibleToSwarm(e)).map(e=>[e.id,e]));
     for(const bee of this.swarmBees){
       bee.px=bee.x;bee.py=bee.y;bee.life-=dt;if(this.superWeaponTime<=0)bee.life=Math.min(bee.life,1);if(bee.life<=0||bee.stingSpent)continue;
       if(bee.delay>0){bee.delay=Math.max(0,bee.delay-dt);continue;}

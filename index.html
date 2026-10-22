@@ -83,7 +83,7 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
 
 <body>
   <a class="skipLink" href="#card">Skip to content</a>
-  <div id="stage">
+  <div id="stage" class="game-hidden">
     <div id="bgBlur"></div>
 
     <canvas id="snow" aria-hidden="true"></canvas>
@@ -142,7 +142,7 @@ a.btn{display:inline-block;text-decoration:none;line-height:1.4;}
         </div>
       </div>
     </section>
-    <button id="returnGame" type="button" hidden>Play snow game ❄️</button>
+    <button id="returnGame" type="button" aria-controls="gamePanel">Show snow game ❄️</button>
   </div>
 
   <script>
@@ -207,10 +207,10 @@ function endBlizzard(){
   gamePanel.classList.remove("shake");
   hintEl.textContent="Tap the snow below. Fast taps can trigger a blizzard!";
 }
-function reset(start=false){
-  alive=start;hasStarted=start;gameDismissed=false;score=0;combo=0;lastTapTime=null;gameTime=0;pileLevel=.12;shovelWear=0;last=performance.now();
+function reset(start=false,show=true){
+  alive=start;hasStarted=start;gameDismissed=!show;score=0;combo=0;lastTapTime=null;gameTime=0;pileLevel=.12;shovelWear=0;last=performance.now();
   endBlizzard();buriedEl.textContent="N/A";overlay.hidden=true;pileHit.disabled=false;
-  stage.classList.remove("game-hidden");returnBtn.hidden=true;
+  stage.classList.toggle("game-hidden",!show);returnBtn.hidden=show;
   shovelLabel.textContent=start?"Shovel snow · Space / Enter":"Start shoveling · tap or press Space";
   if(!start)hintEl.textContent="Snow game: start whenever you like. Your high score stays on this device.";
   updateHud();resize();
@@ -317,7 +317,7 @@ function tick(){
   }
   drawSnow(dt,alive?snowMult:1);drawPile();requestAnimationFrame(tick);
 }
-resize();initFlakes();reset(false);requestAnimationFrame(tick);
+resize();initFlakes();reset(false,false);requestAnimationFrame(tick);
 
   </script>
 </body>

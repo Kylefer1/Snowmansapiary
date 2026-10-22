@@ -1,0 +1,102 @@
+[
+  {
+    "title": "A tiny electrical world",
+    "text": "Honeybees accumulate electric charge as they fly. Experiments show that electric fields can move their antennae and that bees can learn to associate those signals with a reward.",
+    "source": "Greggers and colleagues · 2013",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3619523/"
+  },
+  {
+    "title": "Honey’s natural chemistry",
+    "text": "Honey can naturally contain small amounts of hydrogen peroxide. A bee-added enzyme called glucose oxidase helps produce it, especially when honey is diluted. The amount varies between honeys.",
+    "source": "Brudzynski and colleagues · Frontiers in Microbiology, 2011",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC3201021/"
+  },
+  {
+    "title": "Two “stomachs,” two different jobs",
+    "text": "Honeybees have a nectar-carrying crop, often called the honey stomach, and a separate digestive stomach. The crop lets a forager bring nectar home without sending it straight into digestion.",
+    "source": "University of Arkansas Extension · About Honey Bees",
+    "url": "https://www.uaex.uada.edu/farm-ranch/special-programs/beekeeping/about-honey-bees.aspx"
+  },
+  {
+    "title": "Five eyes for a busy life",
+    "text": "A honeybee has two large compound eyes and three tiny simple eyes called ocelli. The simple eyes sense light and help the bee orient itself.",
+    "source": "University of Arkansas Extension · About Honey Bees",
+    "url": "https://www.uaex.uada.edu/farm-ranch/special-programs/beekeeping/about-honey-bees.aspx"
+  },
+  {
+    "title": "Four wings that work together",
+    "text": "Honeybees have four wings. Tiny hooks link each hindwing to the forewing during flight, helping the pair work as one flight surface.",
+    "source": "University of Arkansas Extension · About Honey Bees",
+    "url": "https://www.uaex.uada.edu/farm-ranch/special-programs/beekeeping/about-honey-bees.aspx"
+  },
+  {
+    "title": "Built-in pollen baskets",
+    "text": "Worker honeybees pack pollen into special baskets on their back legs. Stiff hairs help hold the load in place for the trip back to the hive.",
+    "source": "University of Arkansas Extension · About Honey Bees",
+    "url": "https://www.uaex.uada.edu/farm-ranch/special-programs/beekeeping/about-honey-bees.aspx"
+  },
+  {
+    "title": "The bees make their building material",
+    "text": "Worker honeybees produce tiny wax flakes from glands beneath their abdomens. They shape that wax into the comb used to raise young bees and store food.",
+    "source": "University of Arkansas Extension · About Honey Bees",
+    "url": "https://www.uaex.uada.edu/farm-ranch/special-programs/beekeeping/about-honey-bees.aspx"
+  },
+  {
+    "title": "A different kind of family tree",
+    "text": "A honey bee queen usually produces daughters from fertilized eggs and sons from unfertilized eggs. Female bees have two chromosome sets; male drones have one.",
+    "source": "Penn State Extension · Honey Bee Genetics Basics",
+    "url": "https://extension.psu.edu/honey-bee-genetics-basics"
+  },
+  {
+    "title": "One queen, many fathers",
+    "text": "A queen mates with multiple drones, so workers in the same honey bee colony can have different fathers. A hive is a family with a surprisingly complex genetic story.",
+    "source": "Penn State Extension · Honey Bee Genetics Basics",
+    "url": "https://extension.psu.edu/honey-bee-genetics-basics"
+  },
+  {
+    "title": "Royal beginnings",
+    "text": "Female honey bee larvae can become queens or workers. The rich, sustained royal-jelly diet given to queen-destined larvae helps shape that remarkable difference.",
+    "source": "Penn State Extension · Queen Honey Bee Development",
+    "url": "https://extension.psu.edu/an-introduction-to-queen-honey-bee-development"
+  },
+  {
+    "title": "A hive with air conditioning",
+    "text": "Honeybees use water and wing-fanning to help cool their nest. A dependable water supply matters during hot weather.",
+    "source": "Oregon State Extension · Bees in a heat wave",
+    "url": "https://extension.oregonstate.edu/catalog/em-9887-how-help-bees-survive-heat-wave"
+  },
+  {
+    "title": "Winter is not a long nap",
+    "text": "Honeybees form a heat-producing winter cluster and use stored food as fuel. The colony needs access to that food throughout cold weather.",
+    "source": "Penn State Extension · Seasonal management",
+    "url": "https://extension.psu.edu/honey-bee-management-throughout-the-seasons"
+  },
+  {
+    "title": "Nectar and pollen do different jobs",
+    "text": "Nectar provides carbohydrate energy, while pollen supplies nutrients for growing bees. Colony nutrition takes more than honey alone.",
+    "source": "Mississippi State Extension · Colony growth",
+    "url": "https://extension.msstate.edu/sites/default/files/publications/P2941_web.pdf"
+  },
+  {
+    "title": "Honey bees are part of a bigger story",
+    "text": "The western honey bee is not native to the Americas. Native bees were pollinating here long before honey bee colonies arrived with European colonists.",
+    "source": "USDA ARS · History of U.S. beekeeping",
+    "url": "https://www.ars.usda.gov/ARSUserFiles/60500500/PDFFiles/1-100/093-Oertel--History%20of%20Beekeeping%20in%20the%20U.S..pdf"
+  },
+  {
+    "title": "Winter bees carry extra reserves",
+    "text": "Honeybees have a nutrient-storing organ called the fat body. It becomes more developed in winter workers, helping them survive for months. Summer bees have this organ too; winter bees do not simply grow a new layer of fat.",
+    "source": "Koubova and colleagues · Scientific Reports, 2021",
+    "url": "https://www.nature.com/articles/s41598-020-79912-9"
+  },
+  {
+    "title": "How a colony shifts toward winter",
+    "text": "As autumn pollen supplies decline and brood rearing slows, young workers can keep more reserves and live longer. Colony signals matter too. Foragers staying inside are not a proven single switch that turns larvae into winter bees.",
+    "source": "Mattila & Otis · 2007; Smedal and colleagues · 2009; Penn State SARE GNE15-100 final report",
+    "url": "https://resjournals.onlinelibrary.wiley.com/doi/10.1111/j.1365-2311.2007.00904.x",
+    "supporting_urls": [
+      "https://pubmed.ncbi.nlm.nih.gov/19915120/",
+      "https://projects.sare.org/project-reports/gne15-100/"
+    ]
+  }
+]

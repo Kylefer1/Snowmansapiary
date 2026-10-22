@@ -43,7 +43,7 @@
       this.compressor = null;
       this.output = null;
       this.musicGain = null;
-      this.musicDuck = null;
+      this.musicBed = null;
       this.musicSource = null;
       this.musicElement = null;
       this.musicSources = new WeakMap();
@@ -82,8 +82,8 @@
       this.master.gain.value = 0;
       this.musicGain = this.context.createGain();
       this.musicGain.gain.value = this.musicEnabled ? this.musicVolume : 0;
-      this.musicDuck = this.context.createGain();
-      this.musicDuck.gain.value = 1;
+      this.musicBed = this.context.createGain();
+      this.musicBed.gain.value = .45;
       this.compressor = this.context.createDynamicsCompressor();
       this.compressor.threshold.value = -9;
       this.compressor.knee.value = 6;
@@ -93,8 +93,10 @@
       this.output = this.context.createGain();
       this.output.gain.value = .9;
       this.master.connect(this.compressor);
-      this.musicGain.connect(this.musicDuck);
-      this.musicDuck.connect(this.compressor);
+      // Music stays at the former quiet level continuously and bypasses the
+      // effects compressor, so combat cannot change its loudness.
+      this.musicGain.connect(this.musicBed);
+      this.musicBed.connect(this.output);
       this.compressor.connect(this.output);
       this.output.connect(this.context.destination);
       return true;
@@ -193,14 +195,6 @@
       if (this.musicGain && this.context) this.musicGain.gain.setTargetAtTime(this.musicEnabled ? this.musicVolume : 0, this.context.currentTime, .03);
     }
 
-    duckMusic(duration) {
-      if (!this.musicEnabled || !this.musicDuck || !this.context) return;
-      var now = this.context.currentTime, gain = this.musicDuck.gain;
-      gain.cancelScheduledValues(now);
-      gain.setValueAtTime(gain.value, now);
-      gain.setTargetAtTime(.45, now, .012);
-      gain.setTargetAtTime(1, now + Math.min(.5, Math.max(.12, duration)), .12);
-    }
     cue(name, intensity) {
       if (!this.enabled || this.volume <= 0 || !this.context || this.context.state !== 'running') return;
       if (this.document && (this.document.hidden || this.document.visibilityState === 'hidden')) return;
@@ -213,7 +207,6 @@
       strength = Math.min(1.6, strength);
       this.lastCue[name] = now;
       try {
-        this.duckMusic(Math.max.apply(null, phrase.map(note => (note.delay || 0) + note.duration)));
         phrase.forEach((note) => this.voice(note, strength));
       } catch (_) {
         this.recoverEffects();
@@ -358,7 +351,7 @@
       this.compressor = null;
       this.output = null;
       this.musicGain = null;
-      this.musicDuck = null;
+      this.musicBed = null;
       this.musicSource = null;
       this.musicElement = null;
       this.musicSources = new WeakMap();

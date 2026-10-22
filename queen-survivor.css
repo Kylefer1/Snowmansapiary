@@ -25,3 +25,6 @@
 @media(min-width:800px){.stageCards{grid-template-columns:repeat(3,minmax(0,1fr))}.stageCard strong{font-size:25px}}
 
 .ultimateArt[hidden]{display:none!important}
+
+/* Keep music separate from effects, within reach in every view. */
+#musicToggle{padding:4px 7px;min-height:28px;font-size:10px;white-space:nowrap;background:#243d2d;border-color:#d6c47d88;color:#f1dfa5}#musicToggle[aria-pressed="false"]{color:#b8c4ad;background:#182b24}.settings{flex-wrap:wrap;row-gap:4px}#gameFooter>a{flex-shrink:0}@media(max-width:600px){#gameFooter{gap:5px;padding-top:5px;padding-bottom:max(5px,env(safe-area-inset-bottom))}.settings{column-gap:7px}#musicToggle{font-size:9px;padding:4px}#gameFooter>a{max-width:63px;font-size:8px}}

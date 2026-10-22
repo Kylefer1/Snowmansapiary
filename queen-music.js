@@ -7,7 +7,7 @@
     this.media=media;this.button=button;this.doc=doc;this.storage=storage;
     this.enabled=true;this.unlocked=false;this.away=false;this.pending=null;
     try{this.enabled=storage?.getItem('meadow-music')!=='off';}catch(_){}
-    media.loop=true;media.volume=.15;media.playbackRate=1;
+    media.loop=true;media.volume=.15;media.playbackRate=1;try{const saved=storage?.getItem('meadow-music-volume');if(saved!==null&&saved!==undefined&&Number.isFinite(Number(saved)))media.volume=Math.max(0,Math.min(1,Number(saved)));}catch(_){}
     this.render();
   }
   Controller.prototype.render=function(){
@@ -39,6 +39,9 @@
     if(!media||!button)return null;
     var storage;try{storage=window.localStorage;}catch(_){}
     var controller=new Controller(media,button,doc,storage);
+    var slider=doc.getElementById('musicVolume'),label=doc.getElementById('musicVolumeValue');
+    if(slider){slider.value=String(Math.round(media.volume*100));label.textContent=slider.value+'%';slider.addEventListener('input',function(){media.volume=Math.max(0,Math.min(1,Number(slider.value)/100));label.textContent=slider.value+'%';try{storage?.setItem('meadow-music-volume',String(media.volume));}catch(_){}});}
+
     button.addEventListener('click',function(){controller.toggle();});
     doc.addEventListener('pointerdown',function(event){if(event.isTrusted&& !event.target.closest?.('#musicToggle'))controller.gesture();});
     doc.addEventListener('click',function(event){if(event.isTrusted&& !event.target.closest?.('#musicToggle'))controller.gesture();});

@@ -34,7 +34,7 @@ const ENEMIES={
   mite:{name:'Rust Mite',description:'A direct pursuer that grows dangerous in crowds.',color:'#a94936',hp:21,speed:69,r:12,xp:1,behavior:'chase'},
   varroa:{name:'Varroa Mite',description:'A quick crawling mite. Contact briefly slows your defender in this game, so keep clear of clusters.',color:'#a46942',hp:18,speed:112,r:10,xp:2,behavior:'scuttle'},
   moth:{name:'Ash Moth',description:'Weaves through the meadow on a swaying flight path.',color:'#ada18b',hp:27,speed:83,r:14,xp:2,behavior:'weave'},
-  beetle:{name:'Ironback Beetle',description:'A slow armored shell absorbs some incoming damage.',color:'#687373',hp:72,speed:43,r:20,xp:4,behavior:'armor',armor:.28},
+  beetle:{name:'Ironback Beetle',description:'A separate silver shell bar must break before ordinary hits can damage its health. Explosive upgrades break armor faster.',color:'#687373',hp:72,speed:43,r:20,xp:4,behavior:'armor',armor:.28},
   wasp:{name:'Lance Wasp',description:'Stops and sights its target before a fast charge.',color:'#cc973d',hp:39,speed:87,r:15,xp:3,behavior:'charge'},
   spitter:{name:'Sap Spitter',description:'Keeps its distance and launches glowing red sap. Dodge the pulsing red shots.',color:'#95ad64',hp:40,speed:56,r:17,xp:3,behavior:'ranged'},
   splitter:{name:'Brood Carrier',description:'Breaks apart into a cluster of fast broodlings.',color:'#957456',hp:65,speed:54,r:21,xp:4,behavior:'split'},
@@ -52,7 +52,7 @@ const dist2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
 const finite=(v,f=0)=>Number.isFinite(v)?v:f;
 function segmentDistance2(x,y,ax,ay,bx,by){const dx=bx-ax,dy=by-ay,l=dx*dx+dy*dy,t=l?clamp(((x-ax)*dx+(y-ay)*dy)/l,0,1):0;return (x-ax-dx*t)**2+(y-ay-dy*t)**2;}
 class Game{
-  constructor({random=Math.random,stage=1,character='queen',autoRecovery=false}={}){
+  constructor({random=Math.random,stage=1,character='queen',autoRecovery=false,permanent={}}={}){
     this.random=typeof random==='function'?random:Math.random;this.stage=STAGES[stage]?Number(stage):1;this.stageInfo=STAGES[this.stage];
     this.character=CHARACTERS[character]?character:'queen';this.autoRecovery=!!autoRecovery;this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2,throwTime:0};
     this.time=0;this.wave=1;this.level=1;this.xp=0;this.need=8;this.kills=0;
@@ -62,6 +62,9 @@ class Game{
     this.enemies=[];this.hives=[];this.shots=[];this.drops=[];this.zones=[];this.events=[];this.options=[];this.pendingReward=null;
     this.superWeaponTime=0;this.swarmBees=[];this._superTimer=0;this._swarmOrigin={x:1300,y:1300};this._hiveClock=45;this._hiveTravel=0;
     this.pressureTime=0;this._quietTime=0;this._pressureCooldown=30;this._recentKills=[];this.outbreakState='idle';this.outbreakTime=0;this._outbreakNext=this._range(540,565);this._outbreakSpawn=0;this._outbreakBudget=0;this.viewport={width:1000,height:700};
+    this.permanent=permanent;this.specialCharge=0;this.specialCooldown=0;this.specialTime=0;this.specialHealing=0;this._spearTimer=0;this._resilienceCooldown=0;this._royalTimer=0;
+    const hpBonus=Math.max(0,Math.min(5,Number(permanent.health)||0))*20;this.queen.max+=hpBonus;this.queen.hp+=hpBonus;
+    if(this.character==='queen')this.weapons.guard=Math.max(this.weapons.guard,Math.min(5,2+(Number(permanent.guard)||0)));
     this.dashCooldown=0;this.input={x:0,y:0,aimX:0,aimY:0};this.endless=false;this.campaignComplete=false;this._nextId=1;this._spawn=.3;this._pity=0;this._bossWaves=new Set();this._timers={guard:0,pollen:1.2,propolis:1,wing:this.character==='snowman'?0:1,lance:.2,disc:.8,bolt:.5,tempest:0,cataclysm:.5,nova:1};this._resumeState='playing';this._dashTime=0;this._dashX=0;this._dashY=-1;
   }
   _random(){return clamp(finite(this.random(),.5),0,.999999999);}
@@ -75,15 +78,11 @@ class Game{
     const z=view.zoom||1,origin=this._swarmOrigin,left=view.x-view.width/2+44/z,right=view.x+view.width/2-44/z,top=view.y-view.height/2+Math.min(165/z,view.height*.42),bottom=view.y+view.height/2-Math.min(90/z,view.height*.25);
     const x=clamp(origin.x,left,right),y=clamp(origin.y,top,bottom);return {x,y,pinned:x!==origin.x||y!==origin.y};
   }
-  pickupRadius(type='xp'){return (type==='chest'?100:155)*(1+(this.weapons.pickup||0)*.25);}
+  pickupRadius(type='xp'){return (type==='chest'?100:155)*(1+(this.weapons.pickup||0)*.25+(Number(this.permanent.reach)||0)*.1);}
   start(){if(this.state==='ready'){this.state='playing';this._event('wave',this.queen.x,this.queen.y,{wave:1});}return this;}
   pause(){if(this.state==='playing'){this._resumeState=this.state;this.state='paused';}return this.state;}
   resume(){if(this.state==='paused')this.state=this._resumeState;return this.state;}
-  dash(x=this.input.x,y=this.input.y){
-    if(this.state!=='playing'||this.dashCooldown>0)return false;
-    x=finite(x);y=finite(y);let d=Math.hypot(x,y);if(d<.05){x=Math.cos(this.queen.angle);y=Math.sin(this.queen.angle);d=1;}
-    this._dashX=x/d;this._dashY=y/d;this._dashTime=.18;this.dashCooldown=5;this.queen.inv=Math.max(this.queen.inv,.38);this._event('dash',this.queen.x,this.queen.y,{angle:Math.atan2(y,x),color:'#f0dca8'});return true;
-  }
+  dash(){return false;} // Specials charge automatically; retained as a safe input compatibility hook.
   step(dt,input){
     if(this.state!=='playing')return;
     dt=clamp(finite(dt),0,.25);if(!dt)return;
@@ -112,6 +111,7 @@ class Game{
       this._spawn-=dt;
       if(this._spawn<=0){const tier=this.endlessTier(),packs=1+Math.min(7,Math.floor(tier/4));for(let i=0;i<packs;i++)this._spawnWavePack();this._spawn=this.spawnInterval();}
     }
+    this._special(dt);
     this._weapons(dt);
     this._swarm(dt);
     this._enemies(dt);
@@ -205,16 +205,21 @@ class Game{
     let x=finite(opts.x,clamp(q.x+Math.cos(a)*radius,25,WORLD-25)),y=finite(opts.y,clamp(q.y+Math.sin(a)*radius,25,WORLD-25));
     // At a world edge a clamped spawn can be too close; choose the opposite side instead.
     if(opts.x===undefined&&Math.hypot(x-q.x,y-q.y)<370){x=clamp(q.x-Math.cos(a)*650,25,WORLD-25);y=clamp(q.y-Math.sin(a)*650,25,WORLD-25);}
-    const tier=this.wave-1,hpTier=this.endless?Math.min(tier,this.stageInfo.waves-1):tier,stageFactor=this.stage===3?1.45:this.stage===2?1.24:1,hp=def.hp*(1+hpTier*.12+hpTier*hpTier*.006)*stageFactor*(1+this.endlessTier()*.005)*(opts.final||opts.boss&&this.endlessTier()>0?1.5:1);
+    const tier=this.wave-1,hpTier=this.endless?Math.min(tier,this.stageInfo.waves-1):tier,stageFactor=this.stage===3?1.95:this.stage===2?1.55:1,hp=def.hp*(1+hpTier*.12+hpTier*hpTier*.006)*stageFactor*(1+this.endlessTier()*.005)*(opts.final||opts.boss&&this.endlessTier()>0?1.5:1);
     const e={id:this._nextId++,type,name:def.name,x,y,px:x,py:y,hp,max:hp,speed:def.speed*Math.min(1.62,1+tier*.025)*(this.stage===2?1.06:1),r:def.r,boss:!!opts.boss,final:!!opts.final,armor:def.armor||0,hit:0,angle:Math.atan2(q.y-y,q.x-x),phase:this._range(0,TAU),timer:type==='hornet'?2:this._range(1.4,2.7),mode:'approach',chargeX:0,chargeY:0,color:def.color,behavior:def.behavior};
+    e.armorMax=type==='beetle'?hp*.65:0;e.armorHp=e.armorMax;e.gustClock=type==='hornet'?7+(e.id%4):0;e.gustWarning=0;e.frozen=0;
     this.enemies.push(e);return e;
   }
-  _damage(e,amount){
+  _damage(e,amount,armorPower=1){
     if(e.type==='wildHive'){this._damageHive(e,amount);return;}
     if(e.hp<=0||!Number.isFinite(amount)||amount<=0)return;
-    e.hp-=amount*(1-(e.armor||0));e.hit=.1;
+    if(e.markTime>0)amount*=1.2;const before=e.hp;let remaining=amount;
+    if(e.armorHp>0){const absorbed=Math.min(e.armorHp,remaining*armorPower);e.armorHp-=absorbed;remaining=Math.max(0,remaining-absorbed/armorPower);if(e.armorHp<=0)this._event('armorbreak',e.x,e.y,{radius:e.r+20,color:'#c5e5ed'});}
+    e.hp-=remaining;e.hit=.1;
+    if(this.character==='queen'&&this.specialTime>0&&this._royalDamage){const heal=Math.min(Math.max(0,before-Math.max(0,e.hp))*.01,Math.max(0,18-this.specialHealing));this.specialHealing+=heal;this.queen.hp=Math.min(this.queen.max,this.queen.hp+heal);}
     if(amount>=5)this._event('hit',e.x,e.y,{enemyType:e.type,color:e.color,radius:e.r});
     if(e.hp>0)return;
+    if(this.character==='snowman'&&e.frozen>0&&this.specialTime>0){const heal=Math.min(2,Math.max(0,24-this.specialHealing));this.specialHealing+=heal;this.queen.hp=Math.min(this.queen.max,this.queen.hp+heal);}
     e.hp=0;this.kills++;this._pity++;this._recentKills.push(this.time);
     this._event('kill',e.x,e.y,{enemyType:e.type,boss:e.boss,color:e.color,radius:e.r,angle:e.angle,tiny:!!e.outbreak});
     this._drop('xp',e.x,e.y,ENEMIES[e.type].xp+(e.boss?Math.floor(this.wave/3):0));
@@ -234,12 +239,12 @@ class Game{
   _shotAt(target,damage,royal=false,spread=0){
     const q=this.queen,aim=Math.hypot(this.input.aimX,this.input.aimY)>.18;
     let a=aim?Math.atan2(this.input.aimY,this.input.aimX):Math.atan2(target.y-q.y,target.x-q.x);a+=spread;
-    this._addShot({type:royal?'royal':'guard',x:q.x,y:q.y,vx:Math.cos(a)*520,vy:Math.sin(a)*520,life:2.1,damage,pierce:royal?4:1,targetId:target.id,homing:!aim,angle:a,color:royal?'#ffe29d':'#f2c76b'});
+    this._addShot({type:royal?'royal':'guard',x:q.x,y:q.y,vx:Math.cos(a)*235,vy:Math.sin(a)*235,life:5,flightPhase:this._range(0,TAU),baseAngle:a,flightAge:0,damage,pierce:royal?4:1,targetId:target.id,homing:!aim,angle:a,color:royal?'#ffe29d':'#f2c76b'});
   }
   _launchSwarm(count,x,y){
     for(let i=0;i<count&&this.swarmBees.length<MAX_SWARM;i++){
       const phase=this._range(0,TAU),bx=x+Math.cos(phase)*this._range(2,16),by=y+Math.sin(phase)*this._range(2,16);
-      this.swarmBees.push({id:this._nextId++,x:bx,y:by,px:bx,py:by,vx:Math.cos(phase)*110,vy:Math.sin(phase)*110,angle:phase,phase,speed:this._range(305,400),life:12,delay:i*.025,targetId:null,stingSpent:false});
+      this.swarmBees.push({id:this._nextId++,x:bx,y:by,px:bx,py:by,vx:Math.cos(phase)*110,vy:Math.sin(phase)*110,angle:phase,phase,speed:this._range(195,275),life:12,delay:i*.025,targetId:null,stingSpent:false});
     }
   }
   _activateSwarm(drop){
@@ -250,17 +255,24 @@ class Game{
   _swarm(dt){
     if(!this.swarmBees.length)return;const living=new Map(this.enemies.filter(e=>e.hp>0&&this._visibleToSwarm(e)).map(e=>[e.id,e]));
     for(const bee of this.swarmBees){
-      bee.px=bee.x;bee.py=bee.y;bee.life-=dt;if(this.superWeaponTime<=0)bee.life=Math.min(bee.life,1);if(bee.life<=0||bee.stingSpent)continue;
+      bee.px=bee.x;bee.py=bee.y;bee.life-=dt;if(this.superWeaponTime<=0&&!(bee.royalCall&&this.specialTime>0))bee.life=Math.min(bee.life,1);if(bee.life<=0||bee.stingSpent)continue;
       if(bee.delay>0){bee.delay=Math.max(0,bee.delay-dt);continue;}
+      if(bee.collector){
+        let drop=!bee.cargo?this.drops.find(d=>d.id===bee.dropId&&!d.taken):null;
+        if(!drop&&!bee.cargo){drop=this.drops.filter(d=>!d.taken&&!d.carried&&['xp','health','honeycomb'].includes(d.type)&&dist2(d,this.queen)<600**2).sort((a,b)=>dist2(a,bee)-dist2(b,bee))[0];if(drop){drop.carried=bee.id;bee.dropId=drop.id;}}
+        const dest=bee.cargo?this.queen:drop;
+        if(dest){const a=Math.atan2(dest.y-bee.y,dest.x-bee.x),d=Math.hypot(dest.x-bee.x,dest.y-bee.y),bend=Math.sin(this.time*5+bee.phase)*Math.min(.5,d/100);bee.vx=Math.cos(a+bend)*bee.speed;bee.vy=Math.sin(a+bend)*bee.speed;bee.x+=bee.vx*dt;bee.y+=bee.vy*dt;bee.angle=a+bend;if(d<18){if(bee.cargo){if(bee.cargo.type==='xp')this.xp+=bee.cargo.value;else this.queen.hp=Math.min(this.queen.max,this.queen.hp+bee.cargo.value);bee.life=0;}else{bee.cargo={type:drop.type,value:drop.value};drop.taken=true;}}continue;}
+      }
       let target=living.get(bee.targetId);
       if(!target||target.hp<=0){let best=Infinity;target=null;for(const e of living.values()){if(e.hp<=0)continue;const d=dist2(e,bee);if(d<best){best=d;target=e;}}bee.targetId=target?.id??null;}
       let tx,ty;
-      if(target){const distance=Math.hypot(target.x-bee.x,target.y-bee.y)||1,curve=Math.sin(this.time*4.5+bee.phase)*Math.min(65,distance*.28);tx=target.x-(target.y-bee.y)/distance*curve;ty=target.y+(target.x-bee.x)/distance*curve;}
+      if(target){const distance=Math.hypot(target.x-bee.x,target.y-bee.y)||1,curve=(Math.sin(this.time*3.1+bee.phase)*.75+Math.sin(this.time*5.7+bee.id)*.25)*Math.min(150,distance*.65);tx=target.x-(target.y-bee.y)/distance*curve;ty=target.y+(target.x-bee.x)/distance*curve;}
       else{const a=this.time*1.4+bee.phase,r=85+(bee.id%7)*22;tx=this.queen.x+Math.cos(a)*r;ty=this.queen.y+Math.sin(a)*r;}
-      const dx=tx-bee.x,dy=ty-bee.y,d=Math.hypot(dx,dy)||1,ease=1-Math.exp(-9*dt);
+      const dx=tx-bee.x,dy=ty-bee.y,d=Math.hypot(dx,dy)||1,ease=1-Math.exp(-4.5*dt);
       bee.vx+=(dx/d*bee.speed-bee.vx)*ease;bee.vy+=(dy/d*bee.speed-bee.vy)*ease;bee.x=clamp(bee.x+bee.vx*dt,0,WORLD);bee.y=clamp(bee.y+bee.vy*dt,0,WORLD);bee.angle=Math.atan2(bee.vy,bee.vx);
-      if(target&&target.hp>0&&segmentDistance2(target.x,target.y,bee.px,bee.py,bee.x,bee.y)<(target.r+7)**2){this._damage(target,45+this.wave*3);bee.stingSpent=true;bee.life=0;this._event('sting',bee.x,bee.y,{color:'#f3dba2',radius:6});}
+      if(target&&target.hp>0&&segmentDistance2(target.x,target.y,bee.px,bee.py,bee.x,bee.y)<(target.r+7)**2){this._royalDamage=!!bee.royalCall;this._damage(target,45+this.wave*3);this._royalDamage=false;bee.stingSpent=true;bee.life=0;this._event('sting',bee.x,bee.y,{color:'#f3dba2',radius:6});}
     }
+    for(const bee of this.swarmBees)if(bee.life<=0&&bee.cargo)this._drop(bee.cargo.type,bee.x,bee.y,bee.cargo.value);
     this.swarmBees=this.swarmBees.filter(b=>b.life>0&&!b.stingSpent);
   }
   _weapons(dt){
@@ -272,7 +284,7 @@ class Game{
     }
     if((w.pollen||f.bloom)&&this._timers.pollen<=0){const target=this._nearest(q,750);if(target){const a=Math.atan2(target.y-q.y,target.x-q.x);this._addShot({type:'pollen',x:q.x,y:q.y,vx:Math.cos(a)*330,vy:Math.sin(a)*330,angle:a,life:2.4,damage:f.bloom?105:28+w.pollen*13,pierce:1,blast:f.bloom?128:52+w.pollen*11,sticky:f.bloom,color:'#e7b45b'});this._timers.pollen=f.bloom?1.5:Math.max(1.7,3-w.pollen*.15);}}
     if(w.propolis&&!f.bloom&&this._timers.propolis<=0){this._zone(q.x,q.y,36+w.propolis*8,4,5+w.propolis*4,'propolis',.48);this._timers.propolis=2.5;}
-    if(this.character==='snowman'&&(w.wing||f.shield)&&this._timers.wing<=0){const target=this._nearest(q,850);if(target){this._snowballs(target,f.shield?5:w.wing);this._timers.wing=f.shield?1.05:Math.max(1.25,1.9-w.wing*.1);}}
+    if(this.character==='snowman'&&(w.wing||f.shield)&&this._timers.wing<=0){const target=this._nearest(q,850);if(target){this._snowballs(target,f.shield?5:w.wing);this._timers.wing=(f.shield?1.05:Math.max(1.25,1.9-w.wing*.1))*[1,1.12,1.3,1.55,2.1][this.permanent.explosive||0];}}
     else if(w.wing&&!f.shield&&this._timers.wing<=0){const r=80+w.wing*17;this._burst(q.x,q.y,r,w.wing*17);for(const e of this.enemies){const d=Math.hypot(e.x-q.x,e.y-q.y);if(e.hp>0&&d<r+e.r&&d>0){e.x=clamp(e.x+(e.x-q.x)/d*65,10,WORLD-10);e.y=clamp(e.y+(e.y-q.y)/d*65,10,WORLD-10);}}this._timers.wing=3.7;}
     if((w.lance||f.storm)&&this._timers.lance<=0){const target=this._nearest(q,950);if(target){const a=this._aimAngle(target);this._addShot({type:'lance',x:q.x,y:q.y,vx:Math.cos(a)*680,vy:Math.sin(a)*680,angle:a,life:1.7,damage:f.storm?95:26+w.lance*14,pierce:f.storm?8:1+w.lance,r:4,chain:f.storm?4:0,color:f.storm?'#b5eff4':'#e8bc62'});this._timers.lance=f.storm?1.25:Math.max(1.45,2.4-w.lance*.14);}}
     if(w.disc&&this._timers.disc<=0){const target=this._nearest(q,700);if(target){const a=this._aimAngle(target);this._addShot({type:'disc',x:q.x,y:q.y,vx:Math.cos(a)*310,vy:Math.sin(a)*310,angle:a,life:3,age:0,returning:false,damage:15+w.disc*12,pierce:9999,r:12,color:'#e3bd6e'});this._timers.disc=Math.max(1.9,3.8-w.disc*.25);}}
@@ -290,15 +302,38 @@ class Game{
     }
   }
   _aimAngle(target){return Math.hypot(this.input.aimX,this.input.aimY)>.18?Math.atan2(this.input.aimY,this.input.aimX):Math.atan2(target.y-this.queen.y,target.x-this.queen.x);}
-  _snowballs(target,rank){const q=this.queen,angle=this._aimAngle(target),count=3+Math.floor(rank/2);q.throwAngle=angle;q.throwTime=.42;for(let i=0;i<count;i++){const a=angle+(i-(count-1)/2)*.16;this._addShot({type:'snowball',x:q.x,y:q.y,vx:Math.cos(a)*400,vy:Math.sin(a)*400,angle:a,life:2.2,damage:18+rank*12,pierce:1,r:7,knockback:35+rank*5,color:'#dceef3'});}this._event('throw',q.x,q.y,{angle});}
+  _snowballs(target,rank){const q=this.queen,angle=this._aimAngle(target),count=3+Math.floor(rank/2),tier=clamp(this.permanent.explosive||0,0,4),scale=[1,1.25,1.65,2.3,3.8][tier],blast=[0,35,55,85,155][tier];q.throwAngle=angle;q.throwTime=.42;for(let i=0;i<count;i++){const a=angle+(i-(count-1)/2)*.16;this._addShot({type:'snowball',x:q.x,y:q.y,vx:Math.cos(a)*400,vy:Math.sin(a)*400,angle:a,life:2.2,damage:(18+rank*12)*scale,pierce:1,r:7,knockback:35+rank*5,blast,tier,armorPower:tier>=2?2:1,color:'#dceef3'});}this._event('throw',q.x,q.y,{angle});}
+  _special(dt){
+    const q=this.queen;this._resilienceCooldown=Math.max(0,this._resilienceCooldown-dt);if(this.permanent.reserves&&q.hp<q.max*.3&&this._resilienceCooldown<=0){q.inv=Math.max(q.inv,this.permanent.reserves*2);this._resilienceCooldown=45;this._event('royalcall',q.x,q.y,{radius:95,color:'#f0d78c'});}this.specialCooldown=Math.max(0,this.specialCooldown-dt);this.specialTime=Math.max(0,this.specialTime-dt);
+    const moving=Math.hypot(this.input.x,this.input.y)>.08||Math.hypot(q.vx,q.vy)>22;
+    const threatened=this.enemies.some(e=>e.hp>0&&this._visibleToSwarm(e));
+    const chargeNeed=Math.max(3.5,6-(Number(this.permanent.focus)||0)*.5);
+    if(this.specialCooldown<=0&&threatened&&!moving)this.specialCharge=Math.min(1,this.specialCharge+dt/chargeNeed);
+    else if(moving)this.specialCharge=Math.max(0,this.specialCharge-dt*.45);
+    if(this.specialCharge>=1){
+      this.specialCharge=0;this.specialCooldown=this.character==='snowman'?42:35;this.specialTime=this.character==='snowman'?10:8;this.specialHealing=0;
+      if(this.character==='snowman'){for(const e of this.enemies)if(e.hp>0&&this._visibleToSwarm(e)){e.frozen=e.boss?1.5:10;e.blizzardMarked=true;}this._event('blizzard',q.x,q.y,{radius:340,color:'#bcecff'});}
+      else{this._royalTimer=0;this._event('royalcall',q.x,q.y,{radius:180,color:'#f0d78c'});}
+    }
+    if(this.character==='queen'&&this.specialTime>0){
+      this._royalTimer-=dt;if(this._royalTimer<=0){const before=this.swarmBees.length;this._launchSwarm(10,q.x,q.y);for(const b of this.swarmBees.slice(before)){b.royalCall=true;b.collector=b.id%3===0;}this._royalTimer=1.2;}
+      // Scouts retrieve loose XP and healing; chests remain deliberate choices.
+      // Collectors carry eligible drops back individually; normal pickup reach still works.
+    }
+    this._spearTimer-=dt;const rank=clamp(this.permanent.spear||0,0,3);
+    if(this.character==='snowman'&&rank&&this._spearTimer<=0){const target=this._nearest(q,1100);if(target){const a=this._aimAngle(target);this._addShot({type:'ice',x:q.x,y:q.y,vx:Math.cos(a)*570,vy:Math.sin(a)*570,angle:a,life:2.2,r:7,damage:75+rank*45,pierce:3+rank*2,armorPower:1.5,color:'#c4f2ff'});this._event('icefire',q.x,q.y,{angle:a});this._spearTimer=3.8-rank*.25;}}
+    if(this.character==='queen'&&this.permanent.command){this._commandTimer=(this._commandTimer||0)-dt;if(this._commandTimer<=0){const target=this._nearest(q,800);if(target){target.markTime=4;this._event('command',target.x,target.y,{radius:45,color:'#ffdc83'});}this._commandTimer=12;}}
+  }
   _chainLightning(origin,first,count,damage,alreadyHit){const used=new Set(alreadyHit||[]);let target=first,from=origin;for(let i=0;i<count&&target;i++){if(target.hp<=0||used.has(target.id))break;used.add(target.id);this._event('lightning',from.x,from.y,{endX:target.x,endY:target.y,color:'#b6edf1',radius:7});this._damage(target,damage*(1-i*.09));from=target;target=this._nearest(from,210,used);}return used;}
   _zone(x,y,r,life,damage,kind,slow=1){if(this.zones.length>=MAX_ZONES)this.zones.shift();this.zones.push({id:this._nextId++,x,y,r,life,max:life,damage,kind,type:kind,slow:slow<1,slowFactor:slow,color:kind==='bloom'?'#dcb164':'#a47946'});}
-  _burst(x,y,r,damage,sticky=false){this._event('burst',x,y,{radius:r,color:sticky?'#dcb164':'#f2d590'});for(const e of [...this._targets()])if(e.hp>0&&dist2(e,{x,y})<(r+e.r)**2)this._damage(e,damage);this._zone(x,y,r,sticky?3.8:.3,sticky?29:0,sticky?'bloom':'pulse',sticky?.43:1);}
+  _burst(x,y,r,damage,sticky=false,armorPower=1){this._event('burst',x,y,{radius:r,color:sticky?'#dcb164':'#f2d590'});for(const e of [...this._targets()])if(e.hp>0&&dist2(e,{x,y})<(r+e.r)**2)this._damage(e,damage,armorPower);this._zone(x,y,r,sticky?3.8:.3,sticky?29:0,sticky?'bloom':'pulse',sticky?.43:1);}
   _enemies(dt){
     const q=this.queen;
     for(const e of [...this.enemies]){
-      if(e.hp<=0)continue;e.px=e.x;e.py=e.y;e.hit=Math.max(0,e.hit-dt);e.timer-=dt;
-      let dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,speed=e.speed;
+      if(e.hp<=0)continue;e.px=e.x;e.py=e.y;e.hit=Math.max(0,e.hit-dt);e.markTime=Math.max(0,(e.markTime||0)-dt);
+      if(e.frozen>0){e.frozen=Math.max(0,e.frozen-dt);continue;}e.timer-=dt;
+      if(e.boss){e.gustClock-=dt;if(e.gustWarning>0){e.gustWarning-=dt;if(e.gustWarning<=0){const dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,dot=(dx/d)*e.gustX+(dy/d)*e.gustY;if(d<650&&dot>.65){q.vx+=e.gustX*300;q.vy+=e.gustY*300;q.x=clamp(q.x+e.gustX*70,22,WORLD-22);q.y=clamp(q.y+e.gustY*70,22,WORLD-22);this.specialCharge=Math.max(0,this.specialCharge-.25);}this._event('gust',e.x,e.y,{angle:Math.atan2(e.gustY,e.gustX),radius:260,color:'#d9ebc0'});e.gustClock=11+(e.id%4);}}else if(e.gustClock<=0&&dist2(e,q)<650**2){const d=Math.hypot(q.x-e.x,q.y-e.y)||1;e.gustX=(q.x-e.x)/d;e.gustY=(q.y-e.y)/d;e.gustWarning=1.4;this._event('gustwarning',e.x,e.y,{angle:Math.atan2(e.gustY,e.gustX)});}}
+      let dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,speed=e.speed;if(e.gustWarning>0)speed*=.1;if(e.blizzardMarked&&e.boss&&this.specialTime>0)speed*=.65;
       e.angle=Math.atan2(dy,dx);if(this.pressureTime>0&&!e.outbreak)speed*=1.3;for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)speed*=z.slowFactor;
       if(e.behavior==='weave'){const weave=Math.sin(this.time*3.2+e.phase)*.85;dx=ux-uy*weave;dy=uy+ux*weave;}
       else if(e.behavior==='swarm'){const flank=Math.sin(this.time*1.8+e.phase)*.65;dx=ux-uy*flank;dy=uy+ux*flank;}
@@ -320,20 +355,27 @@ class Game{
   _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*205,vy:Math.sin(a)*205,angle:a,life:4.2,damage:(e.boss?14:9)*this.endlessDamage(),pierce:1,r:6,color:'#ff4545'});}
   _projectiles(dt){
     for(const s of this.shots){
-      if(s.life<=0)continue;s.px=s.x;s.py=s.y;s.life-=dt;
+      if(s.life<=0)continue;s.flightPhase=s.flightPhase??s.id*.73;s.baseAngle=s.baseAngle??Math.atan2(s.vy,s.vx);s.px=s.x;s.py=s.y;s.life-=dt;
       if(s.type==='disc'){s.age+=dt;if(!s.returning&&s.age>=.65){s.returning=true;s.hit.clear();}if(s.returning){const dx=this.queen.x-s.x,dy=this.queen.y-s.y,n=Math.hypot(dx,dy)||1;if(n<20){s.life=0;continue;}const ease=1-Math.exp(-13*dt);s.vx+=(dx/n*440-s.vx)*ease;s.vy+=(dy/n*440-s.vy)*ease;}else{const a=Math.atan2(s.vy,s.vx)+dt*.8;s.vx=Math.cos(a)*310;s.vy=Math.sin(a)*310;}s.angle=Math.atan2(s.vy,s.vx);}
-      if(s.homing){let target=this._targets().find(e=>e.id===s.targetId&&e.hp>0&&!s.hit.has(e.id));if(!target){target=this._nearest(s,850,s.hit);if(target)s.targetId=target.id;}if(target){const a=Math.atan2(target.y-s.y,target.x-s.x),speed=Math.hypot(s.vx,s.vy)||520;s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.angle=a;}}
+      if(s.type==='guard'||s.type==='royal'){
+        s.flightAge=(s.flightAge||0)+dt;let target=this._targets().find(e=>e.id===s.targetId&&e.hp>0&&!s.hit.has(e.id));
+        if(s.homing&&!target){target=this._nearest(s,1000,s.hit);s.targetId=target?.id;}
+        const base=s.homing&&target?Math.atan2(target.y-s.y,target.x-s.x):s.baseAngle;
+        const distance=target?Math.hypot(target.x-s.x,target.y-s.y):400;
+        const a=base+Math.sin(s.flightAge*5+s.flightPhase)*Math.min(.6,distance/160);
+        const speed=235,ease=1-Math.exp(-8*dt);s.vx+=(Math.cos(a)*speed-s.vx)*ease;s.vy+=(Math.sin(a)*speed-s.vy)*ease;s.angle=Math.atan2(s.vy,s.vx);
+      }else if(s.homing){let target=this._targets().find(e=>e.id===s.targetId&&e.hp>0&&!s.hit.has(e.id));if(!target){target=this._nearest(s,850,s.hit);if(target)s.targetId=target.id;}if(target){const a=Math.atan2(target.y-s.y,target.x-s.x),speed=Math.hypot(s.vx,s.vy)||520;s.vx=Math.cos(a)*speed;s.vy=Math.sin(a)*speed;s.angle=a;}}
       s.x+=s.vx*dt;s.y+=s.vy*dt;
       if(s.faction==='enemy'){const q=this.queen;if(q.inv<=0&&segmentDistance2(q.x,q.y,s.px,s.py,s.x,s.y)<(13+s.r)**2){q.hp-=s.damage;q.inv=.64;s.life=0;this._event('hit',q.x,q.y,{player:true,color:'#ff4545',radius:16});}continue;}
       const hits=this._targets().filter(e=>e.hp>0&&!s.hit.has(e.id)&&segmentDistance2(e.x,e.y,s.px,s.py,s.x,s.y)<(e.r+s.r)**2).sort((a,b)=>dist2(a,{x:s.px,y:s.py})-dist2(b,{x:s.px,y:s.py}));
-      for(const e of hits){if(e.hp<=0)continue;s.hit.add(e.id);if(s.blast){this._burst(e.x,e.y,s.blast,s.damage,s.sticky);s.life=0;break;}this._damage(e,s.damage);if(s.chain){const next=this._nearest(e,210,s.hit);if(next){const chained=this._chainLightning(e,next,s.chain,s.damage*.55,s.hit);for(const id of chained)s.hit.add(id);}}if(s.knockback&&e.type!=='wildHive'&&e.hp>0){e.x=clamp(e.x+Math.cos(s.angle)*s.knockback,10,WORLD-10);e.y=clamp(e.y+Math.sin(s.angle)*s.knockback,10,WORLD-10);}if(s.type==='snowball')this._event('snowhit',e.x,e.y,{color:'#dceef3'});if(--s.pierce<=0){s.life=0;break;}}
-      if(s.life<=0&&s.blast&&!s.hit.size)this._burst(s.x,s.y,s.blast,s.damage,s.sticky);
+      for(const e of hits){if(e.hp<=0)continue;s.hit.add(e.id);if(s.blast){this._burst(e.x,e.y,s.blast,s.damage,s.sticky,s.armorPower||1);s.life=0;break;}this._damage(e,s.damage,s.armorPower||1);if(s.chain){const next=this._nearest(e,210,s.hit);if(next){const chained=this._chainLightning(e,next,s.chain,s.damage*.55,s.hit);for(const id of chained)s.hit.add(id);}}if(s.knockback&&e.type!=='wildHive'&&e.hp>0){e.x=clamp(e.x+Math.cos(s.angle)*s.knockback,10,WORLD-10);e.y=clamp(e.y+Math.sin(s.angle)*s.knockback,10,WORLD-10);}if(s.type==='snowball')this._event('snowhit',e.x,e.y,{color:'#dceef3'});if(--s.pierce<=0){s.life=0;break;}}
+      if(s.life<=0&&s.blast&&!s.hit.size)this._burst(s.x,s.y,s.blast,s.damage,s.sticky,s.armorPower||1);
     }
   }
   _areas(dt){for(const z of this.zones){z.life-=dt;if(z.damage>0)for(const e of [...this._targets()])if(e.hp>0&&dist2(e,z)<(z.r+e.r*.5)**2)this._damage(e,z.damage*dt);}}
   _loot(dt){
     const q=this.queen;let chest=null;
-    for(const d of this.drops){d.px=d.x;d.py=d.y;d.age+=dt;let n=Math.hypot(d.x-q.x,d.y-q.y);const magnet=this.pickupRadius(d.type);
+    for(const d of this.drops){if(d.carried&&!this.swarmBees.some(b=>b.id===d.carried&&b.life>0))d.carried=null;if(d.carried)continue;d.px=d.x;d.py=d.y;d.age+=dt;let n=Math.hypot(d.x-q.x,d.y-q.y);const magnet=this.pickupRadius(d.type);
       if((d.magnetized||n<magnet)&&n>1){const travel=Math.min(n,(d.magnetized?Math.max(420,Math.min(1550,n*2.3)):Math.max(230,n*4))*dt);d.x+=(q.x-d.x)/n*travel;d.y+=(q.y-d.y)/n*travel;n=Math.hypot(d.x-q.x,d.y-q.y);}
       if(n<25){d.taken=true;if(d.type==='chest'&&!chest)chest=d;else if(d.type==='xp')this.xp+=d.value;else if(d.type==='health'||d.type==='honeycomb')q.hp=Math.min(q.max,q.hp+d.value);else if(d.type==='super')this._activateSwarm(d);else if(d.type==='magnet'){let count=0;for(const xp of this.drops)if(xp.type==='xp'&&!xp.taken){xp.magnetized=true;count++;}this._event('magnet',q.x,q.y,{count});}else if(d.type==='chest')d.taken=false;}
     }

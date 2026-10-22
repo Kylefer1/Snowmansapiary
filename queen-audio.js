@@ -7,10 +7,15 @@
   'use strict';
 
   var LIMIT = 18;
-  var RATE = { hit: 0.075, kill: 0.065, burst: 0.14, dash: 0.15, reward: 0.08,
+  var RATE = { armorbreak:.15,gust:.3,blizzard:.5,royalcall:.5,icefire:.2, hit: 0.075, kill: 0.065, burst: 0.14, dash: 0.15, reward: 0.08,
     chest: 0.3, fusion: 0.5, level: 0.4, wave: 0.4, boss: 0.5, victory: 1, defeat: 1 };
   // Each short phrase is synthesized here; no recordings or downloaded music are used.
   var PHRASES = {
+    armorbreak:[{noise:true,duration:.2,gain:.35,filter:3500},{frequency:650,end:180,duration:.18,gain:.15,type:'triangle'}],
+    gust:[{noise:true,duration:.6,gain:.32,filter:1200,filterType:'bandpass'}],
+    blizzard:[{noise:true,duration:.7,gain:.3,filter:4200},{frequency:900,end:300,duration:.5,gain:.12,type:'triangle'}],
+    royalcall:[{frequency:440,duration:.25,gain:.2},{frequency:660,delay:.1,duration:.3,gain:.2},{noise:true,duration:.3,gain:.08,filter:1800}],
+    icefire:[{noise:true,duration:.12,gain:.2,filter:4700},{frequency:1300,end:500,duration:.15,gain:.15,type:'triangle'}],
     hit: [{ noise: true, duration: 0.055, gain: 0.2, filter: 2100 }, { frequency: 180, end: 85, duration: 0.07, gain: 0.12 }],
     kill: [{ noise: true, duration: 0.095, gain: 0.27, filter: 1150 }, { frequency: 310, end: 95, duration: 0.09, gain: 0.12, type: 'triangle' }],
     burst: [{ noise: true, duration: 0.22, gain: 0.38, filter: 900 }, { frequency: 105, end: 38, duration: 0.24, gain: 0.27 }],
@@ -28,6 +33,7 @@
   class Audio {
     constructor(options) {
       options = options || {};
+      this.volume = .75;
       this.Context = options.AudioContext || null;
       this.document = options.document || root.document;
       this.context = null;
@@ -101,7 +107,7 @@
         this.lastCue = Object.create(null);
         this.master.gain.cancelScheduledValues(context.currentTime);
         this.master.gain.setValueAtTime(0, context.currentTime);
-        this.master.gain.linearRampToValueAtTime(0.14, context.currentTime + 0.035);
+        this.master.gain.linearRampToValueAtTime(.24*this.volume, context.currentTime + 0.035);
         this.startBuzz();
         return true;
       } catch (_) {
@@ -110,6 +116,10 @@
       }
     }
 
+    setVolume(value) {
+      this.volume=Math.max(0,Math.min(1,Number(value)||0));
+      if(this.master&&this.context&&this.enabled)this.master.gain.setTargetAtTime(.24*this.volume,this.context.currentTime,.03);
+    }
     cue(name, intensity) {
       if (!this.enabled || !this.context || this.context.state !== 'running') return;
       if (this.document && (this.document.hidden || this.document.visibilityState === 'hidden')) return;

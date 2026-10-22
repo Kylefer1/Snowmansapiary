@@ -15,3 +15,13 @@
 .characterCard.queen .manualArt{clip-path:inset(0 4% 0 0)}
 
 .autoRecoverySetting{border:1px solid #a9bb7159;background:#1d332bd9;border-radius:5px;padding:13px 15px;margin:16px 0}.autoRecoverySetting label{display:flex;align-items:center;gap:10px;color:#e9dbab;font-weight:650;cursor:pointer}.autoRecoverySetting input{accent-color:#c4d18b;width:20px;height:20px;flex:0 0 20px}.autoRecoverySetting p{margin:8px 0 0;max-width:70ch}.nextRank{color:#e9dda9;font-size:11px}@media(max-width:600px){.autoRecoverySetting{padding:11px}.autoRecoverySetting label{font-size:13px}.autoRecoverySetting p{font-size:11px}.nextRank{font-size:10px}}
+
+.stageCard.crownfall{background:radial-gradient(ellipse at 95% 0,#bd76b04d,transparent 65%),linear-gradient(135deg,#463045,#1e2631);border-color:#c597c2}
+.stageCard.crownfall .stageNum{color:#e5b0e5}
+.ultimateTag{color:#f0d1ff;border-color:#d3a5e6;background:#683b6738}
+.ultimateArt{position:relative;overflow:visible;border:1px solid #cca3e577;border-radius:50%;background-color:#4c315b22}
+.ultimateArt .manualArt{position:absolute;right:-10px;bottom:-7px;width:76px;height:76px;transform:scale(.55);transform-origin:bottom right;border:1px solid #bfe7ee88;border-radius:50%;background-color:#192930}
+
+@media(min-width:800px){.stageCards{grid-template-columns:repeat(3,minmax(0,1fr))}.stageCard strong{font-size:25px}}
+
+.ultimateArt[hidden]{display:none!important}

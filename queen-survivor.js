@@ -29,8 +29,7 @@ function guideImage(kind,label){
  const el=element('span',undefined,'manualArt');el.setAttribute('role','img');el.setAttribute('aria-label',label);
  const weapons=['guard','jelly','pollen','propolis','orbit','wing','royal','bloom','shield'];
  const extra={snowman:0,lance:3,disc:4,bolt:5,storm:5}[kind]??(kind==='wing'&&(game?.character||selectedCharacter)==='snowman'?1:undefined);
- if(kind==='varroa'){el.style.backgroundImage='url("queen-art/varroa-accurate.webp")';el.style.backgroundSize='300% 100%';el.style.backgroundPosition='0% 50%';}
- else if(extra!==undefined){el.style.backgroundImage='url("queen-art/defenders-weapons.webp")';el.style.backgroundSize='300% 200%';el.style.backgroundPosition=`${extra%3*50}% ${Math.floor(extra/3)*100}%`;}
+ if(extra!==undefined){el.style.backgroundImage='url("queen-art/defenders-weapons.webp")';el.style.backgroundSize='300% 200%';el.style.backgroundPosition=`${extra%3*50}% ${Math.floor(extra/3)*100}%`;}
  else if(weapons.includes(kind)){const index=weapons.indexOf(kind);el.style.backgroundImage='url("queen-art/weapon-icons.webp")';el.style.backgroundSize='300% 300%';el.style.backgroundPosition=`${index%3*50}% ${Math.floor(index/3)*50}%`;}
  else{const propIndex={wildHive:0,honeycomb:1,super:2,magnet:2,pickup:2}[kind],prop=propIndex!==undefined,rect=prop?[propIndex*724,0,724,724]:(MeadowRenderer.rects?.[kind]||[0,0,362,362]),size=72,scale=Math.min(size/rect[2],size/rect[3]);el.style.backgroundImage=`url("queen-art/${prop?'hive-pickups':'insect-atlas'}.webp")`;el.style.backgroundSize=`${(prop?2172:1448)*scale}px ${(prop?724:1086)*scale}px`;el.style.backgroundPosition=`${(76-rect[2]*scale)/2-rect[0]*scale}px ${(76-rect[3]*scale)/2-rect[1]*scale}px`;}
  return el;

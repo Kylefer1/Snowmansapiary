@@ -47,9 +47,9 @@ class Renderer{
   this.pattern=this.ctx.createPattern(tile,'repeat');this.stage=stage;
  }
  sprite(kind,x,y,size,angle=0,time=0,flight=false,hit=0){
-  const c=this.ctx,propIndex={wildHive:0,honeycomb:1,super:2,magnet:2}[kind],heroIndex={snowman:0,snowmanReady:1,snowmanThrow:2,lance:3,disc:4,bolt:5,storm:5}[kind],isVarroa=kind==='varroa',image=isVarroa?this.varroaAtlas:heroIndex!==undefined?this.heroes:propIndex===undefined?this.atlas:this.props;
+  const c=this.ctx,propIndex={wildHive:0,honeycomb:1,super:2,magnet:2}[kind],heroIndex={snowman:0,snowmanReady:1,snowmanThrow:2,lance:3,disc:4,bolt:5,storm:5}[kind],image=heroIndex!==undefined?this.heroes:propIndex===undefined?this.atlas:this.props;
   if(!image?.complete||!image.naturalWidth){this.ellipse(x,y,size*.27,size*.4,'#baa05e');return}
-  const frame=isVarroa?Math.floor(time*10)%3:0,rect=isVarroa?[frame*image.naturalWidth/3,0,image.naturalWidth/3,image.naturalHeight]:heroIndex!==undefined?[heroIndex%3*image.naturalWidth/3,Math.floor(heroIndex/3)*image.naturalHeight/2,image.naturalWidth/3,image.naturalHeight/2]:propIndex===undefined?(rects[kind]||rects.mite):[image.naturalWidth/3*propIndex,0,image.naturalWidth/3,image.naturalHeight];
+  const rect=heroIndex!==undefined?[heroIndex%3*image.naturalWidth/3,Math.floor(heroIndex/3)*image.naturalHeight/2,image.naturalWidth/3,image.naturalHeight/2]:propIndex===undefined?(rects[kind]||rects.mite):[image.naturalWidth/3*propIndex,0,image.naturalWidth/3,image.naturalHeight];
   const ratio=rect[3]/rect[2],height=size*ratio,flap=flight?Math.sin(time*42+x*.03):0,bob=flight?Math.sin(time*6+x)*1.3:0;
   c.save();c.translate(x,y+bob);c.rotate(angle+Math.PI/2);c.scale(1+flap*.025,1-flap*.012);
   c.drawImage(image,...rect,-size/2,-height/2,size,height);
@@ -58,9 +58,9 @@ class Renderer{
   if(hit>0){c.globalCompositeOperation='screen';c.globalAlpha=Math.min(.55,hit*4);c.drawImage(image,...rect,-size/2,-height/2,size,height)}
   c.restore();
  }
- varroa(x,y,size,angle,time,hit){this.sprite('varroa',x,y,size,angle,time,false,hit);}
+ varroa(x,y,size,angle,time,hit){const c=this.ctx;c.save();c.translate(x,y);c.rotate(angle+Math.PI/2);for(let side of [-1,1])for(let i=0;i<4;i++){const gait=Math.sin(time*21+i*1.6+side*1.5),rootY=(i-1.5)*size*.17,kneeX=side*size*(.43+.06*gait),kneeY=rootY+gait*size*.12,footX=side*size*(.66+.05*gait),footY=rootY+(i-1.5)*size*.14-gait*size*.13;this.line(side*size*.17,rootY,kneeX,kneeY,'#be945f',1.8);this.line(kneeX,kneeY,footX,footY,'#8e6748',1.3);}c.scale(1,.78);this.sprite('varroa',0,0,size,-Math.PI/2,time,false,hit);c.restore();}
  insect(kind,x,y,size,angle=0,time=0,flight=false,hit=0){
-  if(kind==='queen'||size<24||!rects[kind]||!this.atlas?.complete){this.sprite(kind,x,y,size,angle,time,flight,hit);return;}
+  if(kind==='queen'||kind==='hornet'||size<24||!rects[kind]||!this.atlas?.complete){this.sprite(kind,x,y,size,angle,time,flight,hit);return;}
   const c=this.ctx,rect=rects[kind],h=size*rect[3]/rect[2],pairs=kind==='mite'?4:3,legTime=(this.simTime||0)*(flight?5:kind==='broodling'?22:kind==='mite'?18:12)+x*.04+y*.02;
   const inner=kind==='beetle'?'#758181':kind==='spitter'?'#849365':kind==='mite'||kind==='broodling'||kind==='splitter'?'#ad7651':'#b29a67';
   c.save();c.translate(x,y);c.rotate(angle+Math.PI/2);c.lineJoin='round';c.lineCap='round';c.beginPath();

@@ -5,7 +5,7 @@ const {Game,TYPES,UPGRADES,SPECIALTIES,LIMITS,clamp}=ApiaryDefense;
 const $=id=>document.getElementById(id),canvas=$('battlefield'),ctx=canvas.getContext('2d');
 if(!ctx){$('loading').textContent='Canvas is unavailable in this browser. Please try a current browser.';return;}
 const game=new Game();
-let modeChosen=false,pointerInput=null,shotsThrown=0;
+let modeChosen=false,pointerInput=null,shotsThrown=0,shopOpenedWave=-1;
 function loadBest(){try{const n=Number(localStorage.getItem("snowmans_apiary_defense_v2_best_"+game.mode));return Number.isSafeInteger(n)&&n>0?n:0;}catch{return 0;}}
 const images={},names={landscape:'landscape.svg',snowman:'snowman.svg',hive:'hive.svg',bee:'guard-bee.svg',moth:'wax-moth.svg',beetle:'hive-beetle.svg',hornet:'hornet.svg',worm:'waxworm.svg',mouse:'mouse.svg',wasp:'wasp.svg',mite:'varroa.svg',vaporizer:'vaporizer.svg'};
 let scale=1,offsetX=0,offsetY=0,viewW=1100,viewH=600,last=0,artReady=false,visualTime=0,lastHud='',dialogPause=false,charging=false,chargeStart=0,pointerId=null,aim={x:700,y:330},keyboardIndex=0,throwFlash=0,endShown=false,best=0;
@@ -135,17 +135,23 @@ canvas.addEventListener('keyup',e=>{if(e.code==='Space'&&pointerId==='keyboard')
 document.querySelectorAll('[data-hive]').forEach(b=>b.addEventListener('click',()=>{cancelCharge();game.clearMites(Number(b.dataset.hive));updateHud();}));
 document.addEventListener('visibilitychange',()=>{last=performance.now();cancelCharge();if(document.hidden&&game.state==='wave'&&!game.paused){game.paused=true;game.message='Paused while you were away. Resume when you’re ready.';updateHud();}});
 window.addEventListener('blur',()=>{if(pointerId!=='touch')cancelCharge();});
-$('nextWave').addEventListener('click',()=>{if(game.startWave()){canvas.focus({preventScroll:true});updateHud();}});
+function startNextWave(fromShop=false){
+ if(!modeChosen||!['ready','between'].includes(game.state))return false;
+ if(fromShop){if(!$('shopDialog').open)return false;dialogPause=false;game.paused=false;closeDialog('shopDialog');}
+ if(!game.startWave())return false;cancelCharge();canvas.focus({preventScroll:true});updateHud();return true;
+}
+$('nextWave').addEventListener('click',()=>startNextWave());
+$('shopNextWave').addEventListener('click',()=>startNextWave(true));
 $('pauseButton').addEventListener('click',()=>{game.togglePause();cancelCharge();updateHud();});
 for(const id of ['smokeButton','fieldSmoke'])$(id).addEventListener('click',()=>{cancelCharge();game.smoke();updateHud();});
-function openDialog(id){cancelCharge();dialogPause=game.paused;game.paused=true;$(id).showModal();updateHud();}
+function openDialog(id){if($(id).open)return;cancelCharge();dialogPause=game.paused;game.paused=true;$(id).showModal();updateHud();}
 function closeDialog(id){$(id).close();}
 document.querySelectorAll('[data-close]').forEach(b=>b.addEventListener('click',()=>closeDialog(b.dataset.close)));
 for(const id of ['shopDialog','manualDialog','modeDialog'])$(id).addEventListener('close',()=>{game.paused=dialogPause;last=performance.now();updateHud();if(id==='manualDialog'&&endShown&&['won','lost'].includes(game.state)&&!$('endDialog').open)$('endDialog').showModal();});
 $('endDialog').addEventListener('cancel',e=>e.preventDefault());
 $('shopButton').addEventListener('click',()=>{renderShop();openDialog('shopDialog');});
 function renderShop(){
- $('shopBalance').textContent=game.mode==='sandbox'?'Unlimited honey · Sandbox':game.honey+' honey available';const grid=$('shopGrid');grid.replaceChildren();
+ $('shopBalance').textContent=game.mode==='sandbox'?'Unlimited honey · Sandbox':game.honey.toLocaleString()+' honey';const grid=$('shopGrid');grid.replaceChildren();
  for(const [id,u] of Object.entries(UPGRADES)){
   const card=document.createElement('section');card.className='shopCard';
   const h=document.createElement('h3');h.textContent=u.title;card.append(h);
@@ -198,7 +204,7 @@ $('reviewButton').addEventListener('click',()=>{$('endDialog').close();manual('h
 $('restartButton').addEventListener('click',()=>{$('endDialog').close();openDialog('modeDialog');});
 $('modeButton').addEventListener('click',()=>openDialog('modeDialog'));
 $('modeDialog').addEventListener('cancel',e=>{if(!modeChosen)e.preventDefault();});
-document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{game.reset(b.dataset.mode);modeChosen=true;dialogPause=false;best=loadBest();endShown=false;lastHud='';cancelCharge();$('modeDialog').close();updateHud();draw();}));
+document.querySelectorAll('[data-mode]').forEach(b=>b.addEventListener('click',()=>{game.reset(b.dataset.mode);shopOpenedWave=-1;modeChosen=true;dialogPause=false;best=loadBest();endShown=false;lastHud='';cancelCharge();$('modeDialog').close();updateHud();draw();}));
 $('endlessButton').addEventListener('click',()=>{if(game.continueEndless()){$('endDialog').close();endShown=false;lastHud='';updateHud();draw();}});
 function updateHud(){
  const values=[game.wave,game.honey,game.score,game.living().length,game.state,game.paused,game.upgrades.vaporizer,game.smokerUsed,game.message,best,game.infestation(),!!game.brush,game.specialty,game.mode,Math.floor(game.nectarBank),...game.hives.map(h=>Math.ceil(h.hp))].join('|');
@@ -214,6 +220,7 @@ function updateHud(){
  $('miteRate').textContent=game.infestation()+' mites · −'+game.upgrades.vaporizer*35+'% damage';$('message').textContent=game.message;
  $('nextWave').textContent=game.wave===0?'Start wave 1':game.state==='wave'?'Wave '+game.wave+' in progress':'Start wave '+(game.wave+1);
  $('nextWave').disabled=!modeChosen||game.paused||!['ready','between'].includes(game.state);
+ $('shopNextWave').textContent='Start wave '+(game.wave+1)+' →';$('shopNextWave').disabled=!modeChosen||!['ready','between'].includes(game.state);
  $('shopButton').disabled=!modeChosen||game.paused||!['ready','between'].includes(game.state);
  $('smokeButton').disabled=game.state!=='wave'||game.paused||game.smokerUsed;
  $('fieldSmoke').disabled=$('smokeButton').disabled;
@@ -228,6 +235,7 @@ function updateHud(){
   $('endSummary').textContent=`${game.state==='won'?'Fifty waves cleared.':'Reached wave '+game.wave+'.'} ${game.living().length} hives standing · ${game.kills} pests stopped · ${game.score} points. Best: ${best}.`;
   $('endlessButton').hidden=game.state!=='won';$('endDialog').showModal();$('best').textContent=best;
  }
+ if(game.state==='between'&&shopOpenedWave!==game.wave&&!document.querySelector('dialog[open]')){shopOpenedWave=game.wave;renderShop();openDialog('shopDialog');}
 }
 function tick(now){
  const dt=last?clamp((now-last)/1000,0,.1):0;last=now;

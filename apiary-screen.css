@@ -71,3 +71,38 @@ body.immersive .dialogHead{position:sticky;top:-28px;background:#20392f;z-index:
  body.immersive .hiveCare button{min-height:44px}
  body.immersive .dialogHead{top:-20px}
 }
+
+/* Keep honey and the next-wave action visible while the upgrades scroll. */
+#shopDialog{padding:0;overflow:hidden;max-height:90dvh}
+#shopDialog[open]{display:flex;flex-direction:column}
+#shopDialog .shopHeader{flex:none;background:#20392f;border-bottom:1px solid #bfa56a66;padding:18px 24px 16px}
+#shopDialog .dialogHead{position:static;margin:0 0 12px;padding:0;border:0;align-items:center}
+#shopDialog .dialogHead h2{font-size:27px;margin:0}
+#shopDialog .dialogHead .kicker{margin-bottom:4px}
+#shopDialog .dialogHead>button{flex:none}
+.shopToolbar{display:flex;align-items:center;justify-content:space-between;gap:16px}
+#shopBalance{margin:0;font-size:clamp(24px,4vw,34px);font-weight:850;line-height:1.15;color:#ffda72;text-shadow:0 1px 12px #ffbb3838;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+#shopNextWave{flex:none;min-height:48px;padding:12px 20px;box-shadow:0 3px 14px #e2b45522}
+#shopDialog .shopContents{min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 24px 24px;scroll-padding:12px}
+.dashboard .honeyStat{background:#edb94d14;border:1px solid #e5bc6280;border-radius:8px;padding:5px 9px;justify-content:center}
+.dashboard .honeyStat span{color:#ffdf91}
+.dashboard #honey,body.immersive .dashboard #honey{color:#ffda72;font-size:clamp(24px,3vw,30px);font-weight:850;text-shadow:0 1px 10px #ffc24730;overflow-wrap:anywhere}
+@media(max-width:700px){
+ #shopDialog .shopHeader{padding:14px 16px}
+ #shopDialog .dialogHead h2{font-size:23px}
+ #shopDialog .shopContents{padding:0 16px 20px}
+ #shopBalance{font-size:25px}
+ #shopNextWave{padding:11px 13px;font-size:13px;min-height:46px}
+ .shopToolbar{gap:10px}
+ .dashboard #honey,body.immersive .dashboard #honey{font-size:22px}
+ .dashboard .honeyStat{padding:3px 6px}
+}
+@media(orientation:landscape) and (max-height:500px){
+ #shopDialog .shopHeader{padding:10px 18px}
+ #shopDialog .dialogHead{margin-bottom:6px}
+ #shopDialog .dialogHead h2{font-size:22px}
+ #shopDialog .dialogHead .kicker{display:none}
+ #shopBalance{font-size:26px}
+ #shopNextWave{min-height:44px;padding:9px 17px}
+ .dashboard #honey,body.immersive .dashboard #honey{font-size:19px}
+}

@@ -5,7 +5,7 @@
   'use strict';
   function Controller(media,button,doc,storage,mixer){
     this.media=media;this.button=button;this.doc=doc;this.storage=storage;this.mixer=mixer;
-    this.enabled=true;this.unlocked=false;this.away=false;this.pending=null;this.routed=false;this.volume=.15;
+    this.enabled=true;this.unlocked=false;this.away=false;this.pending=null;this.routed=false;this.volume=.65;
     try{this.enabled=storage?.getItem('meadow-music')!=='off';const saved=storage?.getItem('meadow-music-volume');if(saved!==null&&saved!==undefined&&Number.isFinite(Number(saved)))this.volume=Math.max(0,Math.min(1,Number(saved)));}catch(_){}
     media.loop=true;media.volume=this.volume;media.playbackRate=1;this.render();
   }

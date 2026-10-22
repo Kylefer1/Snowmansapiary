@@ -33,8 +33,8 @@
   class Audio {
     constructor(options) {
       options = options || {};
-      this.volume = .75;
-      this.musicVolume = .15;
+      this.volume = 1;
+      this.musicVolume = .65;
       this.musicEnabled = false;
       this.Context = options.AudioContext || null;
       this.document = options.document || root.document;

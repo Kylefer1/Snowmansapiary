@@ -9,7 +9,7 @@
   var LIMIT = 18;
   var RATE = { armorbreak:.15,gust:.3,blizzard:.5,royalcall:.5,icefire:.2, hit: 0.075, kill: 0.065, burst: 0.14, dash: 0.15, reward: 0.08,
     chest: 0.3, fusion: 0.5, level: 0.4, wave: 0.4, boss: 0.5, victory: 1, defeat: 1 };
-  // Each short phrase is synthesized here; no recordings or downloaded music are used.
+  // Effects are synthesized here. Recorded music uses a separate gain in the same mixer.
   var PHRASES = {
     armorbreak:[{noise:true,duration:.2,gain:.35,filter:3500},{frequency:650,end:180,duration:.18,gain:.15,type:'triangle'}],
     gust:[{noise:true,duration:.6,gain:.32,filter:1200,filterType:'bandpass'}],
@@ -34,11 +34,19 @@
     constructor(options) {
       options = options || {};
       this.volume = .75;
+      this.musicVolume = .15;
+      this.musicEnabled = false;
       this.Context = options.AudioContext || null;
       this.document = options.document || root.document;
       this.context = null;
       this.master = null;
       this.compressor = null;
+      this.output = null;
+      this.musicGain = null;
+      this.musicDuck = null;
+      this.musicSource = null;
+      this.musicElement = null;
+      this.musicSources = new WeakMap();
       this.noiseBuffer = null;
       this.buzz = null;
       this.voices = new Set();
@@ -49,7 +57,7 @@
       this.suspendTimer = null;
       this.visibility = () => {
         if (this.document.hidden || this.document.visibilityState === 'hidden') {
-          try { this.setBuzz(0, 175); } catch (_) { this.resetContext(); }
+          try { this.setBuzz(0, 175); } catch (_) { this.recoverEffects(); }
         }
       };
       if (this.document && this.document.addEventListener) {
@@ -57,71 +65,144 @@
       }
     }
 
+    clearSuspend() {
+      if (this.suspendTimer !== null) clearTimeout(this.suspendTimer);
+      this.suspendTimer = null;
+    }
+
+    ensureContext() {
+      if (this.disposed) return false;
+      // A media element can only be attached once. Keep this context alive across
+      // denied gestures and iOS interruptions rather than stranding its source.
+      if (this.context) return this.context.state !== 'closed';
+      var Context = this.Context || root.AudioContext || root.webkitAudioContext;
+      if (!Context) return false;
+      this.context = new Context({ latencyHint: 'interactive' });
+      this.master = this.context.createGain();
+      this.master.gain.value = 0;
+      this.musicGain = this.context.createGain();
+      this.musicGain.gain.value = this.musicEnabled ? this.musicVolume : 0;
+      this.musicDuck = this.context.createGain();
+      this.musicDuck.gain.value = 1;
+      this.compressor = this.context.createDynamicsCompressor();
+      this.compressor.threshold.value = -9;
+      this.compressor.knee.value = 6;
+      this.compressor.ratio.value = 12;
+      this.compressor.attack.value = .003;
+      this.compressor.release.value = .12;
+      this.output = this.context.createGain();
+      this.output.gain.value = .9;
+      this.master.connect(this.compressor);
+      this.musicGain.connect(this.musicDuck);
+      this.musicDuck.connect(this.compressor);
+      this.compressor.connect(this.output);
+      this.output.connect(this.context.destination);
+      return true;
+    }
+
+    async unlock() {
+      this.clearSuspend();
+      try {
+        if (!this.ensureContext()) return false;
+        var context = this.context;
+        if (context.state !== 'running') await context.resume();
+        return !this.disposed && this.context === context && context.state === 'running';
+      } catch (_) {
+        // A rejected resume can succeed on the next trusted gesture. Closing
+        // here would permanently disconnect an already attached music element.
+        return false;
+      }
+    }
+
+    suspendIfIdle() {
+      this.clearSuspend();
+      if (!this.context || this.enabled || this.musicEnabled) return;
+      var context = this.context;
+      this.suspendTimer = setTimeout(() => {
+        this.suspendTimer = null;
+        if (!this.disposed && !this.enabled && !this.musicEnabled && this.context === context && context.state !== 'closed') {
+          try { Promise.resolve(context.suspend()).catch(() => {}); } catch (_) { /* Gains already muted. */ }
+        }
+      }, 50);
+    }
+
     async setEnabled(value) {
       if (this.disposed) return false;
-      if (value && this.enabled && this.context && this.context.state === 'running') return true;
       var epoch = ++this.epoch;
-      if (this.suspendTimer !== null) { clearTimeout(this.suspendTimer); this.suspendTimer = null; }
+      this.clearSuspend();
       if (!value) {
         this.enabled = false;
         this.lastCue = Object.create(null);
         this.stopVoices();
-        this.stopBuzz();
-        var mutedContext = this.context;
-        if (mutedContext && this.master) {
-          var now = mutedContext.currentTime;
+        try { this.stopBuzz(); } catch (_) { this.buzz = null; }
+        if (this.master && this.context) {
+          var now = this.context.currentTime;
           this.master.gain.cancelScheduledValues(now);
           this.master.gain.setValueAtTime(this.master.gain.value, now);
-          this.master.gain.linearRampToValueAtTime(0, now + 0.025);
-          this.suspendTimer = setTimeout(() => {
-            this.suspendTimer = null;
-            if (this.epoch === epoch && this.context === mutedContext && mutedContext.state !== 'closed') {
-              try { Promise.resolve(mutedContext.suspend()).catch(() => {}); } catch (_) { /* Muted even if suspension is unavailable. */ }
-            }
-          }, 35);
+          this.master.gain.linearRampToValueAtTime(0, now + .025);
         }
+        this.suspendIfIdle();
         return false;
       }
-
-      try {
-        if (this.context && this.context.state === 'closed') this.resetContext();
-        if (!this.context || this.context.state === 'closed') {
-          var Context = this.Context || root.AudioContext || root.webkitAudioContext;
-          if (!Context) return false;
-          this.context = new Context({ latencyHint: 'interactive' });
-          this.master = this.context.createGain();
-          this.master.gain.value = 0;
-          this.compressor = this.context.createDynamicsCompressor();
-          this.compressor.threshold.value = -18;
-          this.compressor.knee.value = 18;
-          this.compressor.ratio.value = 4;
-          this.compressor.attack.value = 0.005;
-          this.compressor.release.value = 0.18;
-          this.master.connect(this.compressor);
-          this.compressor.connect(this.context.destination);
-        }
-        var context = this.context;
-        await context.resume();
-        if (this.disposed || epoch !== this.epoch || this.context !== context) return false;
-        this.enabled = true;
-        this.lastCue = Object.create(null);
-        this.master.gain.cancelScheduledValues(context.currentTime);
-        this.master.gain.setValueAtTime(0, context.currentTime);
-        this.master.gain.linearRampToValueAtTime(.24*this.volume, context.currentTime + 0.035);
-        this.startBuzz();
-        return true;
-      } catch (_) {
-        if (epoch === this.epoch) this.resetContext();
-        return false;
-      }
+      if (!await this.unlock() || this.disposed || epoch !== this.epoch) return false;
+      this.enabled = true;
+      this.lastCue = Object.create(null);
+      this.master.gain.cancelScheduledValues(this.context.currentTime);
+      this.master.gain.setValueAtTime(this.master.gain.value, this.context.currentTime);
+      this.master.gain.linearRampToValueAtTime(.9 * this.volume, this.context.currentTime + .035);
+      try { this.startBuzz(); } catch (_) { this.recoverEffects(); return false; }
+      return true;
     }
 
     setVolume(value) {
-      this.volume=Math.max(0,Math.min(1,Number(value)||0));
-      if(this.master&&this.context&&this.enabled)this.master.gain.setTargetAtTime(.24*this.volume,this.context.currentTime,.03);
+      this.volume = Math.max(0, Math.min(1, Number(value) || 0));
+      if (this.master && this.context && this.enabled) this.master.gain.setTargetAtTime(.9 * this.volume, this.context.currentTime, .03);
+    }
+
+    attachMusic(element) {
+      if (this.disposed || !element) return false;
+      try {
+        if (!this.ensureContext() || !this.context.createMediaElementSource) return false;
+        if (this.musicElement === element && this.musicSource) return true;
+        var source = this.musicSources.get(element);
+        if (!source) {
+          source = this.context.createMediaElementSource(element);
+          this.musicSources.set(element, source);
+        }
+        if (this.musicSource) this.musicSource.disconnect();
+        source.connect(this.musicGain);
+        this.musicSource = source;
+        this.musicElement = element;
+        // iOS ignores HTMLMediaElement.volume. The gain above is authoritative.
+        element.volume = 1;
+        return true;
+      } catch (_) { return false; }
+    }
+
+    setMusicEnabled(value) {
+      if (this.disposed) return false;
+      this.musicEnabled = Boolean(value);
+      if (this.musicEnabled) this.clearSuspend();
+      if (this.musicGain && this.context) this.musicGain.gain.setTargetAtTime(this.musicEnabled ? this.musicVolume : 0, this.context.currentTime, .03);
+      if (!this.musicEnabled) this.suspendIfIdle();
+      return this.musicEnabled;
+    }
+
+    setMusicVolume(value) {
+      this.musicVolume = Math.max(0, Math.min(1, Number(value) || 0));
+      if (this.musicGain && this.context) this.musicGain.gain.setTargetAtTime(this.musicEnabled ? this.musicVolume : 0, this.context.currentTime, .03);
+    }
+
+    duckMusic(duration) {
+      if (!this.musicEnabled || !this.musicDuck || !this.context) return;
+      var now = this.context.currentTime, gain = this.musicDuck.gain;
+      gain.cancelScheduledValues(now);
+      gain.setValueAtTime(gain.value, now);
+      gain.setTargetAtTime(.45, now, .012);
+      gain.setTargetAtTime(1, now + Math.min(.5, Math.max(.12, duration)), .12);
     }
     cue(name, intensity) {
-      if (!this.enabled || !this.context || this.context.state !== 'running') return;
+      if (!this.enabled || this.volume <= 0 || !this.context || this.context.state !== 'running') return;
       if (this.document && (this.document.hidden || this.document.visibilityState === 'hidden')) return;
       var phrase = PHRASES[name];
       if (!phrase) return;
@@ -132,9 +213,10 @@
       strength = Math.min(1.6, strength);
       this.lastCue[name] = now;
       try {
+        this.duckMusic(Math.max.apply(null, phrase.map(note => (note.delay || 0) + note.duration)));
         phrase.forEach((note) => this.voice(note, strength));
       } catch (_) {
-        this.resetContext();
+        this.recoverEffects();
       }
     }
 
@@ -223,7 +305,7 @@
       var playing = visible && game && game.state === 'playing';
       var speed = playing && game.queen ? Math.hypot(game.queen.vx || 0, game.queen.vy || 0) : 0;
       try { this.setBuzz(playing ? 0.018 : 0, 175 + Math.min(22, speed * 0.08)); }
-      catch (_) { this.resetContext(); }
+      catch (_) { this.recoverEffects(); }
     }
 
     stopVoices() {
@@ -257,14 +339,30 @@
       });
     }
 
-    resetContext() {
+    recoverEffects() {
       this.enabled = false;
       this.stopVoices();
       try { this.stopBuzz(); } catch (_) { this.buzz = null; }
+      this.lastCue = Object.create(null);
+      this.voices.clear();
+      if (this.master && this.context) {
+        try { this.master.gain.setValueAtTime(0, this.context.currentTime); } catch (_) { /* Failed effect nodes must not stop music. */ }
+      }
+    }
+
+    resetContext() {
+      this.recoverEffects();
       var context = this.context;
       this.context = null;
       this.master = null;
       this.compressor = null;
+      this.output = null;
+      this.musicGain = null;
+      this.musicDuck = null;
+      this.musicSource = null;
+      this.musicElement = null;
+      this.musicSources = new WeakMap();
+      this.musicEnabled = false;
       this.noiseBuffer = null;
       this.lastCue = Object.create(null);
       this.voices.clear();

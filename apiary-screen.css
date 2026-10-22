@@ -135,3 +135,8 @@ body.immersive .dialogHead{position:sticky;top:-28px;background:#20392f;z-index:
  body.immersive #gameSpeed{min-height:38px;padding:7px 10px}
  body.immersive .headerActions{gap:6px}
 }
+
+.battleWrap #gameSpeed{position:absolute;top:10px;right:10px;z-index:2;min-height:44px;font-size:12px;padding:9px 12px;background:#20372ef2;box-shadow:0 3px 12px #10221b55}
+#resumeButton{pointer-events:auto;min-height:46px;min-width:150px;margin-top:10px;font-size:16px;box-shadow:0 4px 16px #10221b55}
+@media(max-width:700px){.battleWrap #gameSpeed{top:7px;right:7px;min-height:38px;font-size:11px;padding:7px 9px}#resumeButton{min-width:130px;font-size:15px}}
+@media(orientation:landscape) and (max-height:500px){body.immersive .battleWrap #gameSpeed{top:5px;right:7px;min-height:36px;padding:6px 9px;font-size:11px}body.immersive #resumeButton{min-height:42px;margin-top:5px}}

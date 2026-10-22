@@ -143,9 +143,10 @@ function startNextWave(fromShop=false){
 $('nextWave').addEventListener('click',()=>startNextWave());
 $('fieldStartWave').addEventListener('click',()=>startNextWave());
 $('fieldBuyUpgrades').addEventListener('click',()=>{if(game.state==='ready'&&!game.paused){renderShop();openDialog('shopDialog');}});
-$('gameSpeed').addEventListener('click',()=>{gameSpeed=gameSpeed%4+1;$('gameSpeed').textContent=gameSpeed+'×';$('gameSpeed').setAttribute('aria-label','Game speed '+gameSpeed+' times. Change speed');});
+$('gameSpeed').addEventListener('click',()=>{gameSpeed=gameSpeed%4+1;$('gameSpeed').textContent='Game Speed: '+gameSpeed+'×';$('gameSpeed').setAttribute('aria-label','Game speed '+gameSpeed+' times. Change speed');});
 $('shopNextWave').addEventListener('click',()=>startNextWave(true));
 $('pauseButton').addEventListener('click',()=>{game.togglePause();cancelCharge();updateHud();});
+$('resumeButton').addEventListener('click',()=>{if(!modeChosen||!game.paused||!['ready','between','wave'].includes(game.state)||document.querySelector('dialog[open]'))return;game.paused=false;last=performance.now();cancelCharge();updateHud();canvas.focus({preventScroll:true});});
 for(const id of ['smokeButton','fieldSmoke'])$(id).addEventListener('click',()=>{cancelCharge();game.smoke();updateHud();});
 function openDialog(id){if($(id).open)return;cancelCharge();dialogPause=game.paused;game.paused=true;$(id).showModal();updateHud();}
 function closeDialog(id){$(id).close();}
@@ -239,7 +240,7 @@ function updateHud(){
  $('fieldSmoke').innerHTML=game.smokerUsed?'Smoker used<span>Next wave</span>':'Use smoker<span>Slow enemies · once per wave</span>';
  $('smokeButton').innerHTML=game.smokerUsed?'Smoker used<span>Resets next wave</span>':'Smoker cloud<span>Once per wave</span>';
  $('pauseButton').textContent=game.paused?'Resume':'Pause';$('pauseButton').disabled=!['ready','between','wave'].includes(game.state);
- $('pauseShade').hidden=!game.paused||$('shopDialog').open||$('manualDialog').open;
+ $('pauseShade').hidden=!game.paused||!['ready','between','wave'].includes(game.state)||!!document.querySelector('dialog[open]');$('resumeButton').disabled=$('pauseShade').hidden;
  $('sceneBadge').textContent=season()+' · '+(game.state==='wave'?'WAVE '+game.wave:game.state==='between'?'REPAIR & PREPARE':game.state==='won'?'APIARY DEFENDED':game.state==='lost'?'TRY AGAIN':'PREPARE YOUR APIARY');
  if(['won','lost'].includes(game.state)&&!endShown){
   endShown=true;if(game.score>best){best=game.score;try{localStorage.setItem('snowmans_apiary_defense_v2_best_'+game.mode,String(best));}catch{}}
@@ -255,6 +256,6 @@ function tick(now){
  requestAnimationFrame(tick);
 }
 Promise.allSettled(Object.entries(names).map(([key,file])=>new Promise((resolve,reject)=>{const img=new Image();images[key]=img;img.onload=resolve;img.onerror=reject;img.src='apiary-art/'+file+'?v=3';}))).then(results=>{artReady=true;$('loading').hidden=true;if(results.some(r=>r.status==='rejected'))game.message='Some artwork could not load. You can still play with simple shapes.';resize();lastHud='';updateHud();});
-entries.how.html+='<h4>Speed and bonus raids</h4><p>Use the 1× button at the top right to cycle through 2×, 3× and 4× game speed. Combat, bees and cooldowns all speed up together. Pauses and menus still stop the simulation. Surprise moth raids arrive on an occasional random timer during battle, with a brief warning. Their smaller, golden-highlighted moths give normal kill rewards; clearing the entire bonus swarm also earns extra honey. A raid must be cleared before the wave finishes.</p>';
+entries.how.html+='<h4>Speed and bonus raids</h4><p>Use Game Speed in the top-right corner of the battlefield to cycle through 1×, 2×, 3× and 4×. Use Resume on the pause screen to continue playing. Combat, bees and cooldowns all speed up together. Pauses and menus still stop the simulation. Surprise moth raids arrive on an occasional random timer during battle, with a brief warning. Their smaller, golden-highlighted moths give normal kill rewards; clearing the entire bonus swarm also earns extra honey. A raid must be cleared before the wave finishes.</p>';
 manual('how');resize();updateHud();$('modeDialog').showModal();requestAnimationFrame(tick);
 })();

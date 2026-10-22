@@ -1,0 +1,12 @@
+.guideSpecimen{margin:0 0 18px;background:rgba(151,191,218,.045);border:1px solid var(--line);border-radius:12px;overflow:hidden}
+.guideSpecimen a{display:block;line-height:0}
+.guideSpecimen a:focus-visible{outline:4px solid #f2c878;outline-offset:-4px}
+.guideSpecimen img{display:block;width:100%;height:auto;aspect-ratio:1;object-fit:contain}
+.guideSpecimen figcaption{padding:12px 14px;color:#cedbec;font-size:13px;line-height:1.55;border-top:1px solid var(--line)}
+.guideCard .illustrationNote{font-size:13px;color:#aebfd0;margin:12px 0 20px}
+.threeCards .guideSpecimen{margin:14px -6px 16px}
+.threeCards .guideSpecimen figcaption{font-size:12px;padding:10px}
+.pestSpecimen,.historySpecimen{float:right;width:38%;max-width:330px;margin:0 0 22px 28px}
+.articleSection:has(.pestSpecimen),.historyStop:has(.historySpecimen){display:flow-root}
+@media(max-width:650px){.pestSpecimen,.historySpecimen{float:none;width:100%;max-width:420px;margin:0 auto 24px}.threeCards .guideSpecimen{max-width:420px;margin:14px auto 16px}}
+@media print{.pestSpecimen,.historySpecimen{width:30%}.guideSpecimen{break-inside:avoid}}

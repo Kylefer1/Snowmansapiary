@@ -7,7 +7,7 @@
     this.media=media;this.button=button;this.doc=doc;this.storage=storage;
     this.enabled=true;this.unlocked=false;this.away=false;this.pending=null;
     try{this.enabled=storage?.getItem('meadow-music')!=='off';}catch(_){}
-    media.loop=true;media.volume=.3;media.playbackRate=1;
+    media.loop=true;media.volume=.15;media.playbackRate=1;
     this.render();
   }
   Controller.prototype.render=function(){

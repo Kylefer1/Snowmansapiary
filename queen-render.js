@@ -70,7 +70,7 @@ class Renderer{
     this.ellipse(ex,ey+e.r*.6,e.r*.9,e.r*.4,'#050d0c55');
     const flight=['moth','wasp','gnat','hornet'].includes(e.type),walk=flight?0:Math.sin(this.clock*(e.type==='broodling'?22:13)+e.id)*.045;
     this.sprite(e.type,ex,ey,e.r*(e.type==='moth'?3.2:3),e.angle+walk,this.clock,flight,e.hit);
-    if(e.boss||e.hit){const width=e.boss?76:30;c.fillStyle='#060d0bb0';c.fillRect(ex-width/2,ey-e.r*1.7-9,width,4);c.fillStyle=e.boss?'#d5a15e':'#bdd18a';c.fillRect(ex-width/2,ey-e.r*1.7-9,width*Math.max(0,e.hp/e.max),4);if(e.boss){c.fillStyle='#e9d5ab';c.font='9px system-ui';c.textAlign='center';c.fillText(e.final?'THE CROWN MATRIARCH':'CROWN HORNET',ex,ey-e.r*1.7-14)}}
+    if(e.boss||e.hit||e.hp<e.max){const width=e.boss?76:30;c.fillStyle='#060d0bb0';c.fillRect(ex-width/2,ey-e.r*1.7-9,width,4);c.fillStyle=e.boss?'#d5a15e':'#bdd18a';c.fillRect(ex-width/2,ey-e.r*1.7-9,width*Math.max(0,e.hp/e.max),4);if(e.boss){c.fillStyle='#e9d5ab';c.font='9px system-ui';c.textAlign='center';c.fillText(e.final?'THE CROWN MATRIARCH':'CROWN HORNET',ex,ey-e.r*1.7-14)}}
   }
   for(const s of game?.shots||[]){if(!visible(s.x,s.y))continue;const x=lerp(s.px,s.x,alpha),y=lerp(s.py,s.y,alpha);if(s.type==='guard'||s.type==='royal'){
     this.line(x-Math.cos(s.angle)*18,y-Math.sin(s.angle)*18,x,y,s.type==='royal'?'#e3cf8d77':'#c1cf7e55',s.type==='royal'?3:1);this.sprite('guard',x,y,s.type==='royal'?29:23,s.angle,this.clock,true);

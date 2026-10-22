@@ -4,14 +4,15 @@
   else root.MeadowEngine=factory();
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
-const WORLD=2600,TAU=Math.PI*2,MAX_ENEMIES=210,MAX_SHOTS=360,MAX_DROPS=320,MAX_ZONES=65;
+const WORLD=2600,TAU=Math.PI*2,MAX_ENEMIES=210,MAX_FLOOD=650,MAX_SHOTS=360,MAX_DROPS=320,MAX_ZONES=65,MAX_SWARM=80;
 const WEAPONS={
   guard:{name:'Guard Bees',description:'Launch loyal bees at the nearest threat. Each rank strengthens the volley.',color:'#f6cd69'},
   jelly:{name:'Royal Jelly',description:'Restore health over time and increase your maximum health.',color:'#eab1c9'},
   pollen:{name:'Pollen Bombs',description:'Explosive pollen strikes groups of enemies with a growing blast.',color:'#ebb656'},
   propolis:{name:'Propolis',description:'Leave resin pools that slow pursuers and wear them down.',color:'#b78645'},
   orbit:{name:'Orbiting Bees',description:'A living ring of defenders damages nearby enemies.',color:'#e8d37b'},
-  wing:{name:'Wingbeat',description:'Release a sweeping pulse that damages and pushes enemies away.',color:'#b6dce1'}
+  wing:{name:'Wingbeat',description:'Release a sweeping pulse that damages and pushes enemies away.',color:'#b6dce1'},
+  pickup:{name:'Nectar Reach',description:'Draw pickups from farther away. Each rank adds 25% of your starting reach, up to 2.25 times the reach at rank five.',color:'#b6df9a',utility:true}
 };
 const FUSIONS={
   royal:{name:'Royal Guard',pair:['guard','jelly'],description:'A piercing royal volley with stronger recovery.',color:'#ffdb84'},
@@ -20,6 +21,7 @@ const FUSIONS={
 };
 const ENEMIES={
   mite:{name:'Rust Mite',description:'A direct pursuer that grows dangerous in crowds.',color:'#a94936',hp:21,speed:69,r:12,xp:1,behavior:'chase'},
+  varroa:{name:'Varroa Mite',description:'A quick crawling mite. Its bite briefly slows the queen, so keep clear of clusters.',color:'#a46942',hp:18,speed:112,r:10,xp:2,behavior:'scuttle'},
   moth:{name:'Ash Moth',description:'Weaves through the meadow on a swaying flight path.',color:'#ada18b',hp:27,speed:83,r:14,xp:2,behavior:'weave'},
   beetle:{name:'Ironback Beetle',description:'A slow armored shell absorbs some incoming damage.',color:'#687373',hp:72,speed:43,r:20,xp:4,behavior:'armor',armor:.28},
   wasp:{name:'Lance Wasp',description:'Stops and sights its target before a fast charge.',color:'#cc973d',hp:39,speed:87,r:15,xp:3,behavior:'charge'},
@@ -42,15 +44,18 @@ class Game{
     this.random=typeof random==='function'?random:Math.random;this.stage=STAGES[stage]?Number(stage):1;this.stageInfo=STAGES[this.stage];
     this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2};
     this.time=0;this.wave=1;this.level=1;this.xp=0;this.need=8;this.kills=0;
-    this.weapons={guard:1,jelly:0,pollen:0,propolis:0,orbit:0,wing:0};this.fused={royal:false,bloom:false,shield:false};
+    this.weapons={guard:1,jelly:0,pollen:0,propolis:0,orbit:0,wing:0,pickup:0};this.fused={royal:false,bloom:false,shield:false};
     this.enemies=[];this.hives=[];this.shots=[];this.drops=[];this.zones=[];this.events=[];this.options=[];this.pendingReward=null;
-    this.superWeaponTime=0;this._superTimer=0;this._hiveClock=45;this._hiveTravel=0;
+    this.superWeaponTime=0;this.swarmBees=[];this._superTimer=0;this._swarmOrigin={x:1300,y:1300};this._hiveClock=45;this._hiveTravel=0;
+    this.pressureTime=0;this._quietTime=0;this._pressureCooldown=30;this._recentKills=[];this.outbreakState='idle';this.outbreakTime=0;this._outbreakNext=this._range(540,565);this._outbreakSpawn=0;this._outbreakBudget=0;this.viewport={width:1000,height:700};
     this.dashCooldown=0;this.input={x:0,y:0,aimX:0,aimY:0};this.endless=false;this.campaignComplete=false;this._nextId=1;this._spawn=.3;this._pity=0;this._bossWaves=new Set();this._timers={guard:0,pollen:1.2,propolis:1,wing:1};this._resumeState='playing';this._dashTime=0;this._dashX=0;this._dashY=-1;
   }
   _random(){return clamp(finite(this.random(),.5),0,.999999999);}
   _range(a,b){return a+(b-a)*this._random();}
   _event(type,x,y,extra={}){if(this.events.length<180)this.events.push({type,x,y,...extra});}
   drainEvents(){const out=this.events;this.events=[];return out;}
+  setViewport(width,height){this.viewport.width=clamp(finite(width,1000),280,2200);this.viewport.height=clamp(finite(height,700),240,2200);}
+  pickupRadius(type='xp'){return (type==='chest'?100:155)*(1+(this.weapons.pickup||0)*.25);}
   start(){if(this.state==='ready'){this.state='playing';this._event('wave',this.queen.x,this.queen.y,{wave:1});}return this;}
   pause(){if(this.state==='playing'){this._resumeState=this.state;this.state='paused';}return this.state;}
   resume(){if(this.state==='paused')this.state=this._resumeState;return this.state;}
@@ -67,7 +72,7 @@ class Game{
   }
   _tick(dt){
     const q=this.queen;q.px=q.x;q.py=q.y;this.time+=dt;q.inv=Math.max(0,q.inv-dt);this.dashCooldown=Math.max(0,this.dashCooldown-dt);this.superWeaponTime=Math.max(0,this.superWeaponTime-dt);
-    const raw=Math.hypot(this.input.x,this.input.y),n=Math.max(1,raw),speed=192;
+    q.slowTime=Math.max(0,(q.slowTime||0)-dt);const raw=Math.hypot(this.input.x,this.input.y),n=Math.max(1,raw),speed=192*(q.slowTime>0?.72:1);
     const tx=this.input.x/n*speed,ty=this.input.y/n*speed,ease=1-Math.exp(-13*dt);
     q.vx+=(tx-q.vx)*ease;q.vy+=(ty-q.vy)*ease;
     if(raw>.05)q.angle=Math.atan2(this.input.y,this.input.x);
@@ -81,6 +86,7 @@ class Game{
     const nextWave=this.endless?1+Math.floor(this.time/30):Math.min(this.stageInfo.waves,1+Math.floor((this.time+1e-7)/30));
     if(nextWave!==this.wave){this.wave=nextWave;this._event('wave',q.x,q.y,{wave:this.wave});}
     const spawning=this.endless||this.time<this.stageInfo.duration;
+    this._challenge(dt,spawning);
     // A full arena delays an elite; it never cancels one or skips the final boss.
     for(let bossWave=5;bossWave<=this.wave;bossWave+=5){
       if(this._bossWaves.has(bossWave))continue;
@@ -90,9 +96,10 @@ class Game{
     }
     if(spawning){
       this._spawn-=dt;
-      if(this._spawn<=0){this._spawnWavePack();this._spawn=Math.max(.16,.87-this.wave*.025)/(this.stage===2?1.2:1);}
+      if(this._spawn<=0){this._spawnWavePack();this._spawn=Math.max(.16,.87-this.wave*.025)/(this.stage===2?1.2:1)/(this.pressureTime>0?2.2:1);}
     }
     this._weapons(dt);
+    this._swarm(dt);
     this._enemies(dt);
     this._projectiles(dt);
     this._areas(dt);
@@ -104,6 +111,34 @@ class Game{
     this._loot(dt);
     if(this.state==='playing')this._checkLevel();
     if(!this.endless&&this.time>=this.stageInfo.duration&&this.enemies.length===0){this.campaignComplete=true;this.state='won';this._event('victory',q.x,q.y,{stage:this.stage});}
+  }
+  _challenge(dt,spawning){
+    this.pressureTime=Math.max(0,this.pressureTime-dt);this._pressureCooldown=Math.max(0,this._pressureCooldown-dt);
+    while(this._recentKills.length&&this._recentKills[0]<this.time-12)this._recentKills.shift();
+    if(this.outbreakState==='warning'){
+      this.outbreakTime=Math.max(0,this.outbreakTime-dt);
+      if(this.outbreakTime<=0){this.outbreakState='flood';this.outbreakTime=18;this._outbreakBudget=480;this._outbreakSpawn=0;for(let i=0;i<190;i++)this._spawnFloodMoth();this._event('outbreak',this.queen.x,this.queen.y,{phase:'flood'});}
+    }else if(this.outbreakState==='flood'){
+      this.outbreakTime=Math.max(0,this.outbreakTime-dt);this._outbreakSpawn-=dt;
+      if(this._outbreakSpawn<=0){for(let i=0;i<10;i++)this._spawnFloodMoth();this._outbreakSpawn=.38;}
+      if(this.outbreakTime<=0){this.outbreakState='idle';this._event('outbreak',this.queen.x,this.queen.y,{phase:'passed'});}
+    }else if(spawning&&this.time>=this._outbreakNext&&(this.endless||this.stageInfo.duration-this.time>35)){
+      this.outbreakState='warning';this.outbreakTime=3.5;this._outbreakNext=this.time+this._range(570,690);this.pressureTime=0;this._quietTime=0;this._pressureCooldown=55;this._event('outbreak',this.queen.x,this.queen.y,{phase:'warning'});
+    }
+    if(!spawning||this.outbreakState!=='idle'||this.queen.hp<this.queen.max*.35){this._quietTime=0;return;}
+    const strong=Object.values(this.weapons).reduce((n,v)=>n+v,0)>=10||Object.values(this.fused).some(Boolean);
+    const nearby=this.enemies.filter(e=>e.hp>0&&dist2(e,this.queen)<470**2).length;
+    if(strong&&nearby<6&&this._recentKills.length>=6&&this.pressureTime<=0&&this._pressureCooldown<=0)this._quietTime+=dt;
+    else this._quietTime=Math.max(0,this._quietTime-dt*.7);
+    if(this._quietTime>=16){this.pressureTime=12;this._pressureCooldown=60;this._quietTime=0;this._event('pressure',this.queen.x,this.queen.y,{duration:12});}
+  }
+  _spawnFloodMoth(){
+    if(this._outbreakBudget<=0||this.enemies.length>=MAX_FLOOD)return null;
+    const q=this.queen,a=this._range(0,TAU),rx=Math.max(240,this.viewport.width*.52),ry=Math.max(250,this.viewport.height*.52),band=this._range(.75,1.18);
+    let x=clamp(q.x+Math.cos(a)*rx*band,16,WORLD-16),y=clamp(q.y+Math.sin(a)*ry*band,16,WORLD-16);
+    if(Math.hypot(x-q.x,y-q.y)<200){x=clamp(q.x-Math.cos(a)*300,16,WORLD-16);y=clamp(q.y-Math.sin(a)*300,16,WORLD-16);}
+    const e=this._spawnEnemy('moth',{x,y,outbreak:true});if(!e)return null;
+    e.name='Miller Moth';e.outbreak=true;e.behavior='outbreak';e.r=5;e.hp=e.max=6+Math.min(8,this.wave*.25);e.speed=this._range(195,235);e.floodLife=this._range(30,40);this._outbreakBudget--;return e;
   }
   _targets(){return this.hives.length?this.enemies.concat(this.hives):this.enemies;}
   _nearest(point,range=Infinity,exclude){
@@ -119,19 +154,19 @@ class Game{
   }
   _damageHive(hive,amount){
     if(hive.hp<=0||!Number.isFinite(amount)||amount<=0)return;hive.hp-=amount;hive.hit=.12;
-    if(hive.hp>0)return;hive.hp=0;const healing=this._random()<.65;
-    this._event('hive',hive.x,hive.y,{healing});this._event('kill',hive.x,hive.y,{enemyType:'wildHive',color:'#d6ad56',radius:25,angle:0});this._drop(healing?'honeycomb':'super',hive.x,hive.y,healing?35:10);
+    if(hive.hp>0)return;hive.hp=0;const roll=this._random(),kind=roll<.45?'honeycomb':roll<.75?'super':'magnet';
+    this._event('hive',hive.x,hive.y,{healing:kind==='honeycomb',dropType:kind});this._event('kill',hive.x,hive.y,{enemyType:'wildHive',color:'#d6ad56',radius:25,angle:0});this._drop(kind,hive.x,hive.y,kind==='honeycomb'?35:10,{originX:hive.x,originY:hive.y});
   }
   _spawnWavePack(){
     if(this.enemies.length>=MAX_ENEMIES)return;
     const unlock=this.wave+(this.stage===2?4:0),pool=['mite','moth'];
-    if(unlock>=2)pool.push('gnat');if(unlock>=3)pool.push('beetle');if(unlock>=4)pool.push('wasp');if(unlock>=6)pool.push('spitter');if(unlock>=8)pool.push('splitter');
+    if(unlock>=2)pool.push('gnat','varroa');if(unlock>=3)pool.push('beetle');if(unlock>=4)pool.push('wasp');if(unlock>=6)pool.push('spitter');if(unlock>=8)pool.push('splitter');
     const type=pool[Math.floor(this._random()*pool.length)],first=this._spawnEnemy(type);
     if(type==='gnat'&&first)for(let i=0;i<2;i++)this._spawnEnemy('gnat',{x:clamp(first.x+this._range(-35,35),20,WORLD-20),y:clamp(first.y+this._range(-35,35),20,WORLD-20)});
     if(this.wave>12&&this._random()<.18)this._spawnEnemy('mite');
   }
   _spawnEnemy(type,opts={}){
-    if(this.enemies.length>=MAX_ENEMIES)return null;
+    if(this.enemies.length>=(opts.outbreak?MAX_FLOOD:MAX_ENEMIES))return null;
     const def=ENEMIES[type];if(!def)return null;
     const a=this._range(0,TAU),radius=this._range(600,760),q=this.queen;
     let x=finite(opts.x,clamp(q.x+Math.cos(a)*radius,25,WORLD-25)),y=finite(opts.y,clamp(q.y+Math.sin(a)*radius,25,WORLD-25));
@@ -147,20 +182,20 @@ class Game{
     e.hp-=amount*(1-(e.armor||0));e.hit=.1;
     if(amount>=5)this._event('hit',e.x,e.y,{enemyType:e.type,color:e.color,radius:e.r});
     if(e.hp>0)return;
-    e.hp=0;this.kills++;this._pity++;
-    this._event('kill',e.x,e.y,{enemyType:e.type,boss:e.boss,color:e.color,radius:e.r,angle:e.angle});
+    e.hp=0;this.kills++;this._pity++;this._recentKills.push(this.time);
+    this._event('kill',e.x,e.y,{enemyType:e.type,boss:e.boss,color:e.color,radius:e.r,angle:e.angle,tiny:!!e.outbreak});
     this._drop('xp',e.x,e.y,ENEMIES[e.type].xp+(e.boss?Math.floor(this.wave/3):0));
     if(e.boss||this._pity>=80||this._random()<.008){this._drop('chest',e.x+15,e.y+5,1);this._pity=0;}
     else if(this._random()<.065)this._drop('health',e.x-8,e.y+10,10);
     if(e.type==='splitter')for(let i=0;i<3;i++)this._spawnEnemy('broodling',{x:clamp(e.x+this._range(-20,20),20,WORLD-20),y:clamp(e.y+this._range(-20,20),20,WORLD-20)});
   }
-  _drop(type,x,y,value){
+  _drop(type,x,y,value,extra={}){
     if(this.drops.length>=MAX_DROPS){
       const xp=this.drops.find(d=>d.type==='xp');
       if(type==='xp'&&xp){xp.value+=value;return;}
       if(xp)this.drops.splice(this.drops.indexOf(xp),1);else return;
     }
-    this.drops.push({id:this._nextId++,type,x,y,px:x,py:y,value,age:0});
+    this.drops.push({id:this._nextId++,type,x,y,px:x,py:y,value,age:0,...extra});
   }
   _addShot(s){if(this.shots.length<MAX_SHOTS)this.shots.push({id:this._nextId++,px:s.x,py:s.y,r:5,hit:new Set(),...s});}
   _shotAt(target,damage,royal=false,spread=0){
@@ -168,9 +203,36 @@ class Game{
     let a=aim?Math.atan2(this.input.aimY,this.input.aimX):Math.atan2(target.y-q.y,target.x-q.x);a+=spread;
     this._addShot({type:royal?'royal':'guard',x:q.x,y:q.y,vx:Math.cos(a)*520,vy:Math.sin(a)*520,life:2.1,damage,pierce:royal?4:1,targetId:target.id,homing:!aim,angle:a,color:royal?'#ffe29d':'#f2c76b'});
   }
+  _launchSwarm(count,x,y){
+    for(let i=0;i<count&&this.swarmBees.length<MAX_SWARM;i++){
+      const phase=this._range(0,TAU),bx=x+Math.cos(phase)*this._range(2,16),by=y+Math.sin(phase)*this._range(2,16);
+      this.swarmBees.push({id:this._nextId++,x:bx,y:by,px:bx,py:by,vx:Math.cos(phase)*110,vy:Math.sin(phase)*110,angle:phase,phase,speed:this._range(305,400),life:12,delay:i*.025,targetId:null,stingSpent:false});
+    }
+  }
+  _activateSwarm(drop){
+    this.superWeaponTime=10;this._superTimer=1.1;this._swarmOrigin={x:finite(drop.originX,drop.x),y:finite(drop.originY,drop.y)};
+    this._launchSwarm(36,this._swarmOrigin.x,this._swarmOrigin.y);
+    this._event('power',this.queen.x,this.queen.y,{originX:this._swarmOrigin.x,originY:this._swarmOrigin.y,color:'#baf4da',radius:45});
+  }
+  _swarm(dt){
+    if(!this.swarmBees.length)return;const living=new Map(this.enemies.filter(e=>e.hp>0).map(e=>[e.id,e]));
+    for(const bee of this.swarmBees){
+      bee.px=bee.x;bee.py=bee.y;bee.life-=dt;if(this.superWeaponTime<=0)bee.life=Math.min(bee.life,1);if(bee.life<=0||bee.stingSpent)continue;
+      if(bee.delay>0){bee.delay=Math.max(0,bee.delay-dt);continue;}
+      let target=living.get(bee.targetId);
+      if(!target||target.hp<=0){let best=Infinity;target=null;for(const e of living.values()){if(e.hp<=0)continue;const d=dist2(e,bee);if(d<best){best=d;target=e;}}bee.targetId=target?.id??null;}
+      let tx,ty;
+      if(target){const distance=Math.hypot(target.x-bee.x,target.y-bee.y)||1,curve=Math.sin(this.time*4.5+bee.phase)*Math.min(65,distance*.28);tx=target.x-(target.y-bee.y)/distance*curve;ty=target.y+(target.x-bee.x)/distance*curve;}
+      else{const a=this.time*1.4+bee.phase,r=85+(bee.id%7)*22;tx=this.queen.x+Math.cos(a)*r;ty=this.queen.y+Math.sin(a)*r;}
+      const dx=tx-bee.x,dy=ty-bee.y,d=Math.hypot(dx,dy)||1,ease=1-Math.exp(-9*dt);
+      bee.vx+=(dx/d*bee.speed-bee.vx)*ease;bee.vy+=(dy/d*bee.speed-bee.vy)*ease;bee.x=clamp(bee.x+bee.vx*dt,0,WORLD);bee.y=clamp(bee.y+bee.vy*dt,0,WORLD);bee.angle=Math.atan2(bee.vy,bee.vx);
+      if(target&&target.hp>0&&segmentDistance2(target.x,target.y,bee.px,bee.py,bee.x,bee.y)<(target.r+7)**2){this._damage(target,45+this.wave*3);bee.stingSpent=true;bee.life=0;this._event('sting',bee.x,bee.y,{color:'#f3dba2',radius:6});}
+    }
+    this.swarmBees=this.swarmBees.filter(b=>b.life>0&&!b.stingSpent);
+  }
   _weapons(dt){
     const q=this.queen,w=this.weapons;for(const k of Object.keys(this._timers))this._timers[k]-=dt;
-    if(this.superWeaponTime>0){this._superTimer-=dt;if(this._superTimer<=0){for(let i=0;i<8;i++){const a=this.time*.6+i*TAU/8;this._addShot({type:'super',x:q.x,y:q.y,vx:Math.cos(a)*560,vy:Math.sin(a)*560,angle:a,life:1.9,damage:45,pierce:2,r:6,color:'#baf4da'});}this._superTimer=.5;}}
+    if(this.superWeaponTime>0){this._superTimer-=dt;if(this._superTimer<=0){this._launchSwarm(9,this._swarmOrigin.x,this._swarmOrigin.y);this._superTimer=1.1;}}
     if(w.jelly||this.fused.royal)q.hp=Math.min(q.max,q.hp+(this.fused.royal?2.6:w.jelly*.38)*dt);
     if((w.guard||this.fused.royal)&&this._timers.guard<=0){
       const target=this._nearest(q,900);if(target){const count=this.fused.royal?5:1+Math.floor(w.guard/2);for(let i=0;i<count;i++)this._shotAt(target,this.fused.royal?66:16+w.guard*8,this.fused.royal,(i-(count-1)/2)*.11);this._timers.guard=this.fused.royal?.72:Math.max(.85,2-w.guard*.22);}
@@ -187,10 +249,12 @@ class Game{
     for(const e of [...this.enemies]){
       if(e.hp<=0)continue;e.px=e.x;e.py=e.y;e.hit=Math.max(0,e.hit-dt);e.timer-=dt;
       let dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,speed=e.speed;
-      e.angle=Math.atan2(dy,dx);for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)speed*=z.slowFactor;
+      e.angle=Math.atan2(dy,dx);if(this.pressureTime>0&&!e.outbreak)speed*=1.3;for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)speed*=z.slowFactor;
       if(e.behavior==='weave'){const weave=Math.sin(this.time*3.2+e.phase)*.85;dx=ux-uy*weave;dy=uy+ux*weave;}
       else if(e.behavior==='swarm'){const flank=Math.sin(this.time*1.8+e.phase)*.65;dx=ux-uy*flank;dy=uy+ux*flank;}
       else if(e.behavior==='skitter'){const jitter=Math.sin(this.time*9+e.phase)*.35;dx=ux-uy*jitter;dy=uy+ux*jitter;}
+      else if(e.behavior==='scuttle'){const jitter=Math.sin(this.time*12+e.phase)*.55;dx=ux-uy*jitter;dy=uy+ux*jitter;speed*=.8+Math.max(0,Math.sin(this.time*4+e.phase))*.5;}
+      else if(e.behavior==='outbreak'){e.floodLife-=dt;if(e.floodLife<=0){e.hp=0;continue;}dx=ux-uy*Math.sin(e.phase+this.time*4)*.14;dy=uy+ux*Math.sin(e.phase+this.time*4)*.14;}
       else if(e.behavior==='ranged'){
         if(e.timer<=0&&d<650){this._enemyShot(e,Math.atan2(uy,ux));e.timer=Math.max(.9,2.7-this.wave*.025);}
         if(d<250){dx=-ux;dy=-uy;}else if(d<340){dx=-uy*.5;dy=ux*.5;}else{dx=ux;dy=uy;}
@@ -200,7 +264,7 @@ class Game{
         else{dx=ux;dy=uy;if(e.timer<=0&&d<700){e.mode='telegraph';e.timer=e.boss?.85:.65;e.chargeX=ux;e.chargeY=uy;if(e.boss){for(let i=-2;i<=2;i++)this._enemyShot(e,e.angle+i*.22);if(this.enemies.length<190)for(let i=0;i<3;i++)this._spawnEnemy('gnat',{x:e.x+this._range(-30,30),y:e.y+this._range(-30,30)});}}}
       }else{dx=ux;dy=uy;}
       const norm=Math.hypot(dx,dy)||1;e.x=clamp(e.x+dx/norm*speed*dt,8,WORLD-8);e.y=clamp(e.y+dy/norm*speed*dt,8,WORLD-8);
-      if(q.inv<=0&&segmentDistance2(q.x,q.y,e.px,e.py,e.x,e.y)<(e.r+13)**2){q.hp-=e.boss?24:e.type==='gnat'?6:10;q.inv=.64;this._event('hit',q.x,q.y,{color:'#f3cf85',radius:18,player:true});}
+      if(q.inv<=0&&segmentDistance2(q.x,q.y,e.px,e.py,e.x,e.y)<(e.r+13)**2){q.hp-=e.outbreak?2:e.boss?24:e.type==='gnat'||e.type==='varroa'?6:10;if(e.type==='varroa')q.slowTime=.65;q.inv=.64;this._event('hit',q.x,q.y,{color:'#f3cf85',radius:18,player:true});}
     }
   }
   _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*205,vy:Math.sin(a)*205,angle:a,life:4.2,damage:e.boss?14:9,pierce:1,r:6,color:'#b9ca73'});}
@@ -218,9 +282,9 @@ class Game{
   _areas(dt){for(const z of this.zones){z.life-=dt;if(z.damage>0)for(const e of [...this._targets()])if(e.hp>0&&dist2(e,z)<(z.r+e.r*.5)**2)this._damage(e,z.damage*dt);}}
   _loot(dt){
     const q=this.queen;let chest=null;
-    for(const d of this.drops){d.px=d.x;d.py=d.y;d.age+=dt;let n=Math.hypot(d.x-q.x,d.y-q.y);const magnet=d.type==='chest'?100:155;
-      if(n<magnet&&n>1){const travel=Math.min(n,Math.max(230,n*4)*dt);d.x+=(q.x-d.x)/n*travel;d.y+=(q.y-d.y)/n*travel;n=Math.hypot(d.x-q.x,d.y-q.y);}
-      if(n<25){d.taken=true;if(d.type==='chest'&&!chest)chest=d;else if(d.type==='xp')this.xp+=d.value;else if(d.type==='health'||d.type==='honeycomb')q.hp=Math.min(q.max,q.hp+d.value);else if(d.type==='super'){this.superWeaponTime=10;this._superTimer=0;this._event('power',q.x,q.y,{color:'#baf4da',radius:45});}else if(d.type==='chest')d.taken=false;}
+    for(const d of this.drops){d.px=d.x;d.py=d.y;d.age+=dt;let n=Math.hypot(d.x-q.x,d.y-q.y);const magnet=this.pickupRadius(d.type);
+      if((d.magnetized||n<magnet)&&n>1){const travel=Math.min(n,(d.magnetized?Math.max(420,Math.min(1550,n*2.3)):Math.max(230,n*4))*dt);d.x+=(q.x-d.x)/n*travel;d.y+=(q.y-d.y)/n*travel;n=Math.hypot(d.x-q.x,d.y-q.y);}
+      if(n<25){d.taken=true;if(d.type==='chest'&&!chest)chest=d;else if(d.type==='xp')this.xp+=d.value;else if(d.type==='health'||d.type==='honeycomb')q.hp=Math.min(q.max,q.hp+d.value);else if(d.type==='super')this._activateSwarm(d);else if(d.type==='magnet'){let count=0;for(const xp of this.drops)if(xp.type==='xp'&&!xp.taken){xp.magnetized=true;count++;}this._event('magnet',q.x,q.y,{count});}else if(d.type==='chest')d.taken=false;}
     }
     this.drops=this.drops.filter(d=>!d.taken);if(chest)this.collectChest(chest);
   }

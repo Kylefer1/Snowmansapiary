@@ -45,7 +45,7 @@ const ENEMIES={
 const STAGES={
   1:{id:1,name:"Meadow's Edge",waves:30,duration:900,description:'Survive thirty waves and defeat the final Crown Hornet.',color:'#7b925d'},
   2:{id:2,name:'Thistle Dusk',waves:35,duration:1050,description:'Thirty-five waves of aggressive dusk swarms.',color:'#79657e'},
-  3:{id:3,name:'Crownfall Arena',waves:20,duration:600,description:'Twenty waves of overlapping bosses. Begin with four fusions and forge super weapons from boss chests.',color:'#9d759e',bossArena:true}
+  3:{id:3,name:'Crownfall Arena',waves:20,duration:600,description:'Extreme challenge: twenty waves of relentless bosses and reinforcements. Double base beeswax, 3 per arena boss, and 100 for clearing the stage.',color:'#9d759e',bossArena:true}
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
@@ -55,7 +55,7 @@ class Game{
   constructor({random=Math.random,stage=1,character='queen',autoRecovery=false,permanent={}}={}){
     this.random=typeof random==='function'?random:Math.random;this.stage=STAGES[stage]?Number(stage):1;this.stageInfo=STAGES[this.stage];
     this.character=CHARACTERS[character]?character:'queen';this.autoRecovery=!!autoRecovery;this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2,throwTime:0};
-    this.time=0;this.wave=1;this.level=1;this.xp=0;this.need=8;this.kills=0;
+    this.time=0;this.wave=1;this.level=1;this.xp=0;this.need=8;this.kills=0;this.arenaBossKills=0;this._arenaSupportClock=4;
     this.weapons=Object.fromEntries(Object.keys(WEAPONS).map(id=>[id,0]));this.weapons[CHARACTERS[this.character].weapon]=CHARACTERS[this.character].rank;this.fused={royal:false,bloom:false,shield:false,storm:false};
     this.ultimates={tempest:false,cataclysm:false};this._arenaBossCounts=new Map();
     if(this.stage===3){for(const fusion of Object.values(FUSIONS))for(const id of fusion.pair)this.weapons[id]=5;for(const id of Object.keys(this.fused))this.fused[id]=true;this.weapons.disc=3;this.weapons.pickup=3;this.queen.hp=this.queen.max=220;}
@@ -65,6 +65,7 @@ class Game{
     this.permanent=permanent;this.specialCharge=0;this.specialCooldown=0;this.specialTime=0;this.specialHealing=0;this._spearTimer=0;this._resilienceCooldown=0;this._royalTimer=0;
     const hpBonus=Math.max(0,Math.min(5,Number(permanent.health)||0))*20;this.queen.max+=hpBonus;this.queen.hp+=hpBonus;
     if(this.character==='queen')this.weapons.guard=Math.max(this.weapons.guard,Math.min(5,2+(Number(permanent.guard)||0)));
+    this._arenaHealthLimit=this.queen.max+60;
     this.dashCooldown=0;this.input={x:0,y:0,aimX:0,aimY:0};this.endless=false;this.campaignComplete=false;this._nextId=1;this._spawn=.3;this._pity=0;this._bossWaves=new Set();this._timers={guard:0,pollen:1.2,propolis:1,wing:this.character==='snowman'?0:1,lance:.2,disc:.8,bolt:.5,tempest:0,cataclysm:.5,nova:1};this._resumeState='playing';this._dashTime=0;this._dashX=0;this._dashY=-1;
   }
   _random(){return clamp(finite(this.random(),.5),0,.999999999);}
@@ -107,6 +108,7 @@ class Game{
     const spawning=this.endless||this.time<this.stageInfo.duration;
     this._challenge(dt,spawning);
     this._scheduleBosses();
+    if(this.stage===3)this._arenaSupport(dt);
     if(spawning&&(this.stage!==3||this.endless)){
       this._spawn-=dt;
       if(this._spawn<=0){const tier=this.endlessTier(),packs=1+Math.min(7,Math.floor(tier/4));for(let i=0;i<packs;i++)this._spawnWavePack();this._spawn=this.spawnInterval();}
@@ -129,14 +131,19 @@ class Game{
   endlessTier(){return this.endless?Math.max(0,this.wave-this.stageInfo.waves):0;}
   endlessDamage(){return 1+this.endlessTier()*.0025;}
   spawnInterval(){return Math.max(.055,Math.max(.16,.87-this.wave*.025)/(this.stage===2?1.2:1)/(1+this.endlessTier()*.045)/(this.pressureTime>0?2.2:1));}
-  arenaBossCount(wave){return Math.min(8,2+Math.floor((wave-1)/5)+(this.endless?Math.floor(Math.max(0,wave-this.stageInfo.waves)/5):0));}
+  arenaBossCount(wave){return Math.min(10,4+Math.floor((wave-1)/3)+(this.endless?Math.floor(Math.max(0,wave-this.stageInfo.waves)/5):0));}
   _scheduleBosses(){
     if(this.stage!==3){for(let wave=5;wave<=this.wave;wave+=5){if(this._bossWaves.has(wave))continue;const boss=this._spawnEnemy('hornet',{boss:true,final:!this.endless&&wave===this.stageInfo.waves});if(boss)this._bossWaves.add(wave);break;}return;}
     let living=this.enemies.filter(e=>e.boss&&e.hp>0).length;
-    for(let wave=1;wave<=this.wave&&living<8;wave++){
+    for(let wave=1;wave<=this.wave&&living<10;wave++){
       const needed=this.arenaBossCount(wave);let count=this._arenaBossCounts.get(wave)||0;
-      while(count<needed&&living<8){const v=this._swarmView(),angle=wave*2.2+count*TAU/needed,rx=clamp(v.width*.4,170,560),ry=clamp(v.height*.38,170,400),x=clamp(this.queen.x+Math.cos(angle)*rx,60,WORLD-60),y=clamp(this.queen.y+Math.sin(angle)*ry,60,WORLD-60);const boss=this._spawnEnemy('hornet',{boss:true,final:!this.endless&&wave===this.stageInfo.waves,x,y});if(!boss)return;const role=(wave+count-1)%3;boss.arenaBoss=true;boss.bossRole=role;boss.name=['Crown Charger','Sap Regent','Brood Sovereign'][role];boss.color=['#e2a15f','#b0d79a','#d5ade8'][role];boss.hp*=2.7+(role===2?.3:0);boss.max=boss.hp;boss.timer=1.1+count*.7;boss.behavior=role===1?'ranged':'boss';count++;living++;this._arenaBossCounts.set(wave,count);}
+      while(count<needed&&living<10){const v=this._swarmView(),angle=wave*2.2+count*TAU/needed,rx=clamp(v.width*.4,170,560),ry=clamp(v.height*.38,170,400),x=clamp(this.queen.x+Math.cos(angle)*rx,60,WORLD-60),y=clamp(this.queen.y+Math.sin(angle)*ry,60,WORLD-60);const boss=this._spawnEnemy('hornet',{boss:true,final:!this.endless&&wave===this.stageInfo.waves,x,y});if(!boss)return;const role=(wave+count-1)%3;boss.arenaBoss=true;boss.bossRole=role;boss.name=['Crown Charger','Sap Regent','Brood Sovereign'][role];boss.color=['#e2a15f','#b0d79a','#d5ade8'][role];boss.hp*=(8+Math.min(wave,20)*.16)+(role===2?.6:0);boss.max=boss.hp;boss.speed*=1.35;boss.timer=1.1+count*.45;boss.behavior=role===1?'ranged':'boss';count++;living++;this._arenaBossCounts.set(wave,count);}
     }
+  }
+  _arenaSupport(dt){
+    this._arenaSupportClock-=dt;if(this._arenaSupportClock>0||(!this.endless&&this.time>=this.stageInfo.duration))return;
+    this._arenaSupportClock=2.5;const living=this.enemies.filter(e=>!e.boss&&e.hp>0).length;if(living>=72)return;
+    const count=Math.min(4,1+Math.floor(this.wave/7),72-living),pool=['wasp','spitter','beetle','varroa'];for(let i=0;i<count;i++)this._spawnEnemy(pool[(this.wave+i+Math.floor(this.time/2.5))%pool.length]);
   }
   _bossScheduleComplete(){
     if(this.stage===3){for(let wave=1;wave<=this.stageInfo.waves;wave++)if((this._arenaBossCounts.get(wave)||0)<this.arenaBossCount(wave))return false;return true;}
@@ -220,10 +227,10 @@ class Game{
     if(amount>=5)this._event('hit',e.x,e.y,{enemyType:e.type,color:e.color,radius:e.r});
     if(e.hp>0)return;
     if(this.character==='snowman'&&e.frozen>0&&this.specialTime>0){const heal=Math.min(2,Math.max(0,24-this.specialHealing));this.specialHealing+=heal;this.queen.hp=Math.min(this.queen.max,this.queen.hp+heal);}
-    e.hp=0;this.kills++;this._pity++;this._recentKills.push(this.time);
+    e.hp=0;if(e.arenaBoss)this.arenaBossKills++;this.kills++;this._pity++;this._recentKills.push(this.time);
     this._event('kill',e.x,e.y,{enemyType:e.type,boss:e.boss,color:e.color,radius:e.r,angle:e.angle,tiny:!!e.outbreak});
     this._drop('xp',e.x,e.y,ENEMIES[e.type].xp+(e.boss?Math.floor(this.wave/3):0));
-    if(e.boss||this._pity>=80||this._random()<.008){this._drop('chest',e.x+15,e.y+5,1,{bossChest:this.stage===3&&e.boss});this._pity=0;}
+    if(e.boss||(this.stage!==3&&(this._pity>=180||this._random()<.003))){this._drop('chest',e.x+15,e.y+5,1,{bossChest:this.stage===3&&e.boss});this._pity=0;}
     else if(this._random()<.065)this._drop('health',e.x-8,e.y+10,10);
     if(e.type==='splitter')for(let i=0;i<3;i++)this._spawnEnemy('broodling',{x:clamp(e.x+this._range(-20,20),20,WORLD-20),y:clamp(e.y+this._range(-20,20),20,WORLD-20)});
   }
@@ -231,15 +238,21 @@ class Game{
     if(this.drops.length>=MAX_DROPS){
       const xp=this.drops.find(d=>d.type==='xp');
       if(type==='xp'&&xp){xp.value+=value;return;}
-      if(xp)this.drops.splice(this.drops.indexOf(xp),1);else return;
+      if(xp)this.drops.splice(this.drops.indexOf(xp),1);
+      else if(type==='chest'){
+        const expendable=this.drops.find(d=>d.type!=='chest'&&!d.carried);
+        if(expendable)this.drops.splice(this.drops.indexOf(expendable),1);
+        else{const stack=this.drops.find(d=>d.type==='chest'&&!!d.bossChest===!!extra.bossChest)||this.drops.find(d=>d.type==='chest');if(stack){stack.value+=value;if(extra.bossChest)stack.bossChest=true;}return;}
+      }else return;
     }
     this.drops.push({id:this._nextId++,type,x,y,px:x,py:y,value,age:0,...extra});
   }
   _addShot(s){if(this.shots.length<MAX_SHOTS)this.shots.push({id:this._nextId++,px:s.x,py:s.y,r:5,hit:new Set(),...s});}
+  guardDamageMultiplier(){return this.character==='queen'?1+clamp(finite(Number(this.permanent.sting)),0,5)*.35:1;}
   _shotAt(target,damage,royal=false,spread=0){
     const q=this.queen,aim=Math.hypot(this.input.aimX,this.input.aimY)>.18;
     let a=aim?Math.atan2(this.input.aimY,this.input.aimX):Math.atan2(target.y-q.y,target.x-q.x);a+=spread;
-    this._addShot({type:royal?'royal':'guard',x:q.x,y:q.y,vx:Math.cos(a)*235,vy:Math.sin(a)*235,life:5,flightPhase:this._range(0,TAU),baseAngle:a,flightAge:0,damage,pierce:royal?4:1,targetId:target.id,homing:!aim,angle:a,color:royal?'#ffe29d':'#f2c76b'});
+    this._addShot({type:royal?'royal':'guard',x:q.x,y:q.y,vx:Math.cos(a)*235,vy:Math.sin(a)*235,life:5,flightPhase:this._range(0,TAU),baseAngle:a,flightAge:0,damage:damage*this.guardDamageMultiplier(),pierce:royal?4:1,targetId:target.id,homing:!aim,angle:a,color:royal?'#ffe29d':'#f2c76b'});
   }
   _launchSwarm(count,x,y){
     for(let i=0;i<count&&this.swarmBees.length<MAX_SWARM;i++){
@@ -278,7 +291,7 @@ class Game{
   _weapons(dt){
     const q=this.queen,w={...this.weapons},f={...this.fused};for(const id of Object.keys(FUSIONS))if(this.fusionConsumed(id)){f[id]=false;for(const key of FUSIONS[id].pair)w[key]=0;}for(const k of Object.keys(this._timers))this._timers[k]-=dt;
     if(this.superWeaponTime>0){this._superTimer-=dt;if(this._superTimer<=0){this._launchSwarm(9,this._swarmOrigin.x,this._swarmOrigin.y);this._superTimer=1.1;}}
-    if(w.jelly||f.royal)q.hp=Math.min(q.max,q.hp+(f.royal?2.6:w.jelly*.38)*dt);
+    if(w.jelly||f.royal)q.hp=Math.min(q.max,q.hp+(f.royal?2.6:w.jelly*.38)*dt*(this.stage===3?.3:1));
     if((w.guard||f.royal)&&this._timers.guard<=0){
       const target=this._nearest(q,900);if(target){const count=f.royal?5:1+Math.floor(w.guard/2);for(let i=0;i<count;i++)this._shotAt(target,f.royal?66:16+w.guard*8,f.royal,(i-(count-1)/2)*.11);this._timers.guard=f.royal?.72:Math.max(.85,2-w.guard*.22);}
     }
@@ -289,12 +302,12 @@ class Game{
     if((w.lance||f.storm)&&this._timers.lance<=0){const target=this._nearest(q,950);if(target){const a=this._aimAngle(target);this._addShot({type:'lance',x:q.x,y:q.y,vx:Math.cos(a)*680,vy:Math.sin(a)*680,angle:a,life:1.7,damage:f.storm?95:26+w.lance*14,pierce:f.storm?8:1+w.lance,r:4,chain:f.storm?4:0,color:f.storm?'#b5eff4':'#e8bc62'});this._timers.lance=f.storm?1.25:Math.max(1.45,2.4-w.lance*.14);}}
     if(w.disc&&this._timers.disc<=0){const target=this._nearest(q,700);if(target){const a=this._aimAngle(target);this._addShot({type:'disc',x:q.x,y:q.y,vx:Math.cos(a)*310,vy:Math.sin(a)*310,angle:a,life:3,age:0,returning:false,damage:15+w.disc*12,pierce:9999,r:12,color:'#e3bd6e'});this._timers.disc=Math.max(1.9,3.8-w.disc*.25);}}
     if(w.bolt&&!f.storm&&this._timers.bolt<=0){const target=this._nearest(q,500);if(target){this._chainLightning(q,target,1+w.bolt,15+w.bolt*11);this._timers.bolt=Math.max(1.7,3.4-w.bolt*.22);}}
-    if(w.orbit||f.shield){const count=f.shield?9:w.orbit+1,r=f.shield?104:64;for(let i=0;i<count;i++){const a=this.time*2.5+i*TAU/count,p={x:q.x+Math.cos(a)*r,y:q.y+Math.sin(a)*r};for(const e of this._targets()){if(e.hp>0&&dist2(e,p)<(e.r+13)**2){this._damage(e,(f.shield?115:20+w.orbit*10)*dt);if(f.shield&&e.type!=='wildHive'){const d=Math.hypot(e.x-q.x,e.y-q.y)||1;e.x+=(e.x-q.x)/d*95*dt;e.y+=(e.y-q.y)/d*95*dt;}}}}}
+    if(w.orbit||f.shield){const count=f.shield?9:w.orbit+1,r=f.shield?104:64;for(let i=0;i<count;i++){const a=this.time*2.5+i*TAU/count,p={x:q.x+Math.cos(a)*r,y:q.y+Math.sin(a)*r};for(const e of this._targets()){if(e.hp>0&&dist2(e,p)<(e.r+13)**2){this._damage(e,(f.shield?115:20+w.orbit*10)*dt);if(f.shield&&e.type!=='wildHive'){const d=Math.hypot(e.x-q.x,e.y-q.y)||1;e.x+=(e.x-q.x)/d*95*dt*(e.arenaBoss?.2:1);e.y+=(e.y-q.y)/d*95*dt*(e.arenaBoss?.2:1);}}}}}
     this._ultimateWeapons(dt);
   }
   _ultimateWeapons(dt){
     const q=this.queen;
-    if(this.ultimates.tempest){q.hp=Math.min(q.max,q.hp+3.3*dt);if(this._timers.tempest<=0){const target=this._nearest(q,1100);if(target){const angle=this._aimAngle(target);for(let i=-3;i<=3;i++){const a=angle+i*.14;this._addShot({type:'tempest',x:q.x,y:q.y,vx:Math.cos(a)*640,vy:Math.sin(a)*640,angle:a,life:2.5,damage:175,pierce:6,chain:4,homing:true,targetId:target.id,r:7,color:'#b9edff'});}this._timers.tempest=1.1;}}}
+    if(this.ultimates.tempest){q.hp=Math.min(q.max,q.hp+3.3*dt*(this.stage===3?.3:1));if(this._timers.tempest<=0){const target=this._nearest(q,1100);if(target){const angle=this._aimAngle(target);for(let i=-3;i<=3;i++){const a=angle+i*.14;this._addShot({type:'tempest',x:q.x,y:q.y,vx:Math.cos(a)*640,vy:Math.sin(a)*640,angle:a,life:2.5,damage:175*this.guardDamageMultiplier(),pierce:6,chain:4,homing:true,targetId:target.id,r:7,color:'#b9edff'});}this._timers.tempest=1.1;}}}
     if(this.ultimates.cataclysm){
       if(this._timers.cataclysm<=0){const target=this._nearest(q,950);if(target){const x=target.x,y=target.y;for(const e of [...this._targets()])if(e.hp>0&&dist2(e,{x,y})<(170+e.r)**2)this._damage(e,220);this._zone(x,y,170,4,80,'cataclysm',.36);this._event('burst',x,y,{radius:170,color:'#dfb2fa'});if(this.character==='snowman')this._snowballs(target,5);this._timers.cataclysm=1.6;}}
       if(this._timers.nova<=0){for(const e of [...this._targets()])if(e.hp>0&&dist2(e,q)<(240+e.r)**2)this._damage(e,245);this._event('burst',q.x,q.y,{radius:240,color:'#dfb2fa'});this._timers.nova=3.3;}
@@ -334,25 +347,25 @@ class Game{
       if(e.frozen>0){e.frozen=Math.max(0,e.frozen-dt);continue;}e.timer-=dt;
       if(e.boss){e.gustClock-=dt;if(e.gustWarning>0){e.gustWarning-=dt;if(e.gustWarning<=0){const dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,dot=(dx/d)*e.gustX+(dy/d)*e.gustY;if(d<650&&dot>Math.cos(.8)){q.vx+=e.gustX*300;q.vy+=e.gustY*300;q.x=clamp(q.x+e.gustX*70,22,WORLD-22);q.y=clamp(q.y+e.gustY*70,22,WORLD-22);this.specialCharge=Math.max(0,this.specialCharge-.25);}this._event('gust',e.x,e.y,{angle:Math.atan2(e.gustY,e.gustX),radius:260,color:'#d9ebc0'});e.gustClock=11+(e.id%4);}}else if(e.gustClock<=0&&dist2(e,q)<650**2){const d=Math.hypot(q.x-e.x,q.y-e.y)||1;e.gustX=(q.x-e.x)/d;e.gustY=(q.y-e.y)/d;e.gustWarning=1.4;this._event('gustwarning',e.x,e.y,{angle:Math.atan2(e.gustY,e.gustX)});}}
       let dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,speed=e.speed;if(e.gustWarning>0)speed*=.1;if(e.blizzardMarked&&e.boss&&this.specialTime>0)speed*=.65;
-      e.angle=Math.atan2(dy,dx);if(this.pressureTime>0&&!e.outbreak)speed*=1.3;for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)speed*=z.slowFactor;
+      e.angle=Math.atan2(dy,dx);if(this.pressureTime>0&&!e.outbreak)speed*=1.3;if(e.arenaBoss){let slow=1;for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)slow=Math.min(slow,z.slowFactor);speed*=Math.max(.72,slow);}else for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)speed*=z.slowFactor;
       if(e.behavior==='weave'){const weave=Math.sin(this.time*3.2+e.phase)*.85;dx=ux-uy*weave;dy=uy+ux*weave;}
       else if(e.behavior==='swarm'){const flank=Math.sin(this.time*1.8+e.phase)*.65;dx=ux-uy*flank;dy=uy+ux*flank;}
       else if(e.behavior==='skitter'){const jitter=Math.sin(this.time*9+e.phase)*.35;dx=ux-uy*jitter;dy=uy+ux*jitter;}
       else if(e.behavior==='scuttle'){const jitter=Math.sin(this.time*12+e.phase)*.55;dx=ux-uy*jitter;dy=uy+ux*jitter;speed*=.8+Math.max(0,Math.sin(this.time*4+e.phase))*.5;}
       else if(e.behavior==='outbreak'){e.floodLife-=dt;if(e.floodLife<=0){e.hp=0;continue;}dx=ux-uy*Math.sin(e.phase+this.time*4)*.14;dy=uy+ux*Math.sin(e.phase+this.time*4)*.14;}
       else if(e.behavior==='ranged'){
-        if(e.timer<=0&&d<650){const a=Math.atan2(uy,ux);if(e.arenaBoss)for(let i=-2;i<=2;i++)this._enemyShot(e,a+i*.22);else this._enemyShot(e,a);e.timer=Math.max(.9,2.7-this.wave*.025);}
+        if(e.timer<=0&&d<650){const a=Math.atan2(uy,ux);if(e.arenaBoss)for(let i=-3;i<=3;i++)this._enemyShot(e,a+i*.18);else this._enemyShot(e,a);e.timer=e.arenaBoss?Math.max(1.1,1.7-Math.min(this.wave,20)*.025):Math.max(.9,2.7-this.wave*.025);}
         if(d<250){dx=-ux;dy=-uy;}else if(d<340){dx=-uy*.5;dy=ux*.5;}else{dx=ux;dy=uy;}
       }else if(e.behavior==='charge'||e.behavior==='boss'){
         if(e.mode==='telegraph'){speed=0;dx=dy=0;if(e.timer<=0){e.mode='charge';e.timer=e.boss?.65:.48;}}
-        else if(e.mode==='charge'){dx=e.chargeX;dy=e.chargeY;speed=e.boss?340:375;if(e.timer<=0){e.mode='approach';e.timer=e.boss?2.4:2.1;}}
+        else if(e.mode==='charge'){dx=e.chargeX;dy=e.chargeY;speed=e.arenaBoss?420:e.boss?340:375;if(e.timer<=0){e.mode='approach';e.timer=e.arenaBoss?1.65:e.boss?2.4:2.1;}}
         else{dx=ux;dy=uy;if(e.timer<=0&&d<700){e.mode='telegraph';e.timer=e.boss?.85:.65;e.chargeX=ux;e.chargeY=uy;if(e.boss){for(let i=-2;i<=2;i++)this._enemyShot(e,e.angle+i*.22);if(this.enemies.length<190)for(let i=0;i<(e.bossRole===2?6:3);i++)this._spawnEnemy('gnat',{x:e.x+this._range(-30,30),y:e.y+this._range(-30,30)});}}}
       }else{dx=ux;dy=uy;}
       const norm=Math.hypot(dx,dy)||1;e.x=clamp(e.x+dx/norm*speed*dt,8,WORLD-8);e.y=clamp(e.y+dy/norm*speed*dt,8,WORLD-8);
-      if(q.inv<=0&&segmentDistance2(q.x,q.y,e.px,e.py,e.x,e.y)<(e.r+13)**2){q.hp-=(e.outbreak?2:e.boss?24:e.type==='gnat'||e.type==='varroa'?6:10)*this.endlessDamage();if(e.type==='varroa')q.slowTime=.65;q.inv=.64;this._event('hit',q.x,q.y,{color:'#f3cf85',radius:18,player:true});}
+      if(q.inv<=0&&segmentDistance2(q.x,q.y,e.px,e.py,e.x,e.y)<(e.r+13)**2){q.hp-=(e.outbreak?2:e.arenaBoss?64:e.boss?24:e.type==='gnat'||e.type==='varroa'?6:10)*this.endlessDamage();if(e.type==='varroa')q.slowTime=.65;q.inv=.64;this._event('hit',q.x,q.y,{color:'#f3cf85',radius:18,player:true});}
     }
   }
-  _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*205,vy:Math.sin(a)*205,angle:a,life:4.2,damage:(e.boss?14:9)*this.endlessDamage(),pierce:1,r:6,color:'#ff4545'});}
+  _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*(e.arenaBoss?250:205),vy:Math.sin(a)*(e.arenaBoss?250:205),angle:a,life:4.2,damage:(e.arenaBoss?38:e.boss?14:9)*this.endlessDamage(),pierce:1,r:6,color:'#ff4545'});}
   _projectiles(dt){
     for(const s of this.shots){
       if(s.life<=0)continue;s.flightPhase=s.flightPhase??s.id*.73;s.baseAngle=s.baseAngle??Math.atan2(s.vy,s.vx);s.px=s.x;s.py=s.y;s.life-=dt;
@@ -368,7 +381,7 @@ class Game{
       s.x+=s.vx*dt;s.y+=s.vy*dt;
       if(s.faction==='enemy'){const q=this.queen;if(q.inv<=0&&segmentDistance2(q.x,q.y,s.px,s.py,s.x,s.y)<(13+s.r)**2){q.hp-=s.damage;q.inv=.64;s.life=0;this._event('hit',q.x,q.y,{player:true,color:'#ff4545',radius:16});}continue;}
       const hits=this._targets().filter(e=>e.hp>0&&!s.hit.has(e.id)&&segmentDistance2(e.x,e.y,s.px,s.py,s.x,s.y)<(e.r+s.r)**2).sort((a,b)=>dist2(a,{x:s.px,y:s.py})-dist2(b,{x:s.px,y:s.py}));
-      for(const e of hits){if(e.hp<=0)continue;s.hit.add(e.id);if(s.blast){this._burst(e.x,e.y,s.blast,s.damage,s.sticky,s.armorPower||1);s.life=0;break;}this._damage(e,s.damage,s.armorPower||1);if(s.chain){const next=this._nearest(e,210,s.hit);if(next){const chained=this._chainLightning(e,next,s.chain,s.damage*.55,s.hit);for(const id of chained)s.hit.add(id);}}if(s.knockback&&e.type!=='wildHive'&&e.hp>0){e.x=clamp(e.x+Math.cos(s.angle)*s.knockback,10,WORLD-10);e.y=clamp(e.y+Math.sin(s.angle)*s.knockback,10,WORLD-10);}if(s.type==='snowball')this._event('snowhit',e.x,e.y,{color:'#dceef3'});if(--s.pierce<=0){s.life=0;break;}}
+      for(const e of hits){if(e.hp<=0)continue;s.hit.add(e.id);if(s.blast){this._burst(e.x,e.y,s.blast,s.damage,s.sticky,s.armorPower||1);s.life=0;break;}this._damage(e,s.damage,s.armorPower||1);if(s.chain){const next=this._nearest(e,210,s.hit);if(next){const chained=this._chainLightning(e,next,s.chain,s.damage*.55,s.hit);for(const id of chained)s.hit.add(id);}}if(s.knockback&&e.type!=='wildHive'&&e.hp>0){e.x=clamp(e.x+Math.cos(s.angle)*s.knockback*(e.arenaBoss?.2:1),10,WORLD-10);e.y=clamp(e.y+Math.sin(s.angle)*s.knockback*(e.arenaBoss?.2:1),10,WORLD-10);}if(s.type==='snowball')this._event('snowhit',e.x,e.y,{color:'#dceef3'});if(--s.pierce<=0){s.life=0;break;}}
       if(s.life<=0&&s.blast&&!s.hit.size)this._burst(s.x,s.y,s.blast,s.damage,s.sticky,s.armorPower||1);
     }
   }
@@ -377,7 +390,7 @@ class Game{
     const q=this.queen;let chest=null;
     for(const d of this.drops){if(d.carried&&!this.swarmBees.some(b=>b.id===d.carried&&b.life>0))d.carried=null;if(d.carried)continue;d.px=d.x;d.py=d.y;d.age+=dt;let n=Math.hypot(d.x-q.x,d.y-q.y);const magnet=this.pickupRadius(d.type);
       if((d.magnetized||n<magnet)&&n>1){const travel=Math.min(n,(d.magnetized?Math.max(420,Math.min(1550,n*2.3)):Math.max(230,n*4))*dt);d.x+=(q.x-d.x)/n*travel;d.y+=(q.y-d.y)/n*travel;n=Math.hypot(d.x-q.x,d.y-q.y);}
-      if(n<25){d.taken=true;if(d.type==='chest'&&!chest)chest=d;else if(d.type==='xp')this.xp+=d.value;else if(d.type==='health'||d.type==='honeycomb')q.hp=Math.min(q.max,q.hp+d.value);else if(d.type==='super')this._activateSwarm(d);else if(d.type==='magnet'){let count=0;for(const xp of this.drops)if(xp.type==='xp'&&!xp.taken){xp.magnetized=true;count++;}this._event('magnet',q.x,q.y,{count});}else if(d.type==='chest')d.taken=false;}
+      if(n<25){d.taken=true;if(d.type==='chest'&&!chest){chest={...d,value:1};if(d.value>1){d.value--;d.taken=false;}}else if(d.type==='xp')this.xp+=d.value;else if(d.type==='health'||d.type==='honeycomb')q.hp=Math.min(q.max,q.hp+d.value);else if(d.type==='super')this._activateSwarm(d);else if(d.type==='magnet'){let count=0;for(const xp of this.drops)if(xp.type==='xp'&&!xp.taken){xp.magnetized=true;count++;}this._event('magnet',q.x,q.y,{count});}else if(d.type==='chest')d.taken=false;}
     }
     this.drops=this.drops.filter(d=>!d.taken);if(chest)this.collectChest(chest);
   }
@@ -389,14 +402,15 @@ class Game{
     const eligible=this._eligible(),valid=new Set(eligible),ids=[...new Set(this.options.filter(o=>WEAPONS[o.id]&&valid.has(o.id)).map(o=>o.id))].slice(0,3);
     if(ids.length<Math.min(3,eligible.length))for(const id of this._shuffle(eligible.filter(id=>!ids.includes(id)))){if(ids.length>=3)break;ids.push(id);}
     this.options=ids.map(id=>this._upgradeOption(id));
-    if(this.options.length<3)this.options.push({id:'reserves',name:'Royal Reserves',description:'Gain 12 maximum health and recover 35 health.',color:'#ddb1b7'});
-    if(this.options.length<3)this.options.push({id:'recovery',name:'Meadow Recovery',description:'Recover half your maximum health.',color:'#a9bf81'});
+    if(this.options.length<3)this.options.push({id:'reserves',name:'Royal Reserves',description:this.stage===3?'Gain up to 3 maximum health (arena growth cap: 60) and recover 10 health.':'Gain 12 maximum health and recover 35 health.',color:'#ddb1b7'});
+    if(this.options.length<3)this.options.push({id:'recovery',name:'Meadow Recovery',description:this.stage===3?'Recover 12% of your maximum health.':'Recover half your maximum health.',color:'#a9bf81'});
     return this.options;
   }
-  _applyRecovery(id){const q=this.queen;if(id==='reserves'){q.max+=12;q.hp=Math.min(q.max,q.hp+35);return true;}if(id==='recovery'){q.hp=Math.min(q.max,q.hp+q.max*.5);return true;}return false;}
+  _recoveryValues(){return this.stage===3?{maxGain:Math.max(0,Math.min(3,this._arenaHealthLimit-this.queen.max)),reservesHeal:10,recoveryHeal:this.queen.max*.12}:{maxGain:12,reservesHeal:35,recoveryHeal:this.queen.max*.5};}
+  _applyRecovery(id){const q=this.queen,v=this._recoveryValues();if(id==='reserves'){q.max+=v.maxGain;q.hp=Math.min(q.max,q.hp+v.reservesHeal);return true;}if(id==='recovery'){q.hp=Math.min(q.max,q.hp+v.recoveryHeal);return true;}return false;}
   _autoRecoveryLevel(){
     if(!this.autoRecovery||this.state!=='levelup'||!this.options.length||this.options.some(o=>!['reserves','recovery'].includes(o.id)))return false;
-    const q=this.queen,heal=Math.min(q.max-q.hp,q.max*.5),reserves=Math.min(q.max+12-q.hp,35),id=heal>reserves?'recovery':'reserves';
+    const q=this.queen,v=this._recoveryValues(),heal=Math.min(q.max-q.hp,v.recoveryHeal),reserves=Math.min(q.max+v.maxGain-q.hp,v.reservesHeal),id=heal>reserves?'recovery':'reserves';
     this._applyRecovery(id);this.options=[];this.state='playing';this._event('autoRecovery',q.x,q.y,{reward:id,source:'levelup'});return true;
   }
   setAutoRecovery(value){
@@ -429,16 +443,16 @@ class Game{
     const fusion=Object.keys(FUSIONS).filter(k=>!this.fused[k]&&FUSIONS[k].pair.every(p=>this.weapons[p]>=5));
     if(ultimate.length){const id=ultimate[Math.floor(this._random()*ultimate.length)],def=ULTIMATES[id];this.pendingReward={id,name:def.name,description:def.description.replace('Swarm Shield',fusionInfo('shield',this.character).name),ultimate:true,color:def.color};}
     else if(fusion.length){const id=fusion[Math.floor(this._random()*fusion.length)],def=fusionInfo(id,this.character);this.pendingReward={id,name:def.name,description:def.description,fusion:true,color:def.color};}
-    else{const eligible=this._eligible(),owned=eligible.filter(k=>this.weapons[k]>0),pool=owned.length?owned:eligible;if(pool.length){const id=pool[Math.floor(this._random()*pool.length)];this.pendingReward={id,name:weaponInfo(id,this.character).name,description:`Bonus rank ${this.weapons[id]+1}/5 and 20 health.`,fusion:false,color:WEAPONS[id].color};}else this.pendingReward={id:'cache',name:'Royal Cache',description:'Gain 15 maximum health and recover 50 health.',color:'#f1d091'};}
+    else{const eligible=this._eligible(),owned=eligible.filter(k=>this.weapons[k]>0),pool=owned.length?owned:eligible;if(pool.length){const id=pool[Math.floor(this._random()*pool.length)];this.pendingReward={id,name:weaponInfo(id,this.character).name,description:`Bonus rank ${this.weapons[id]+1}/5 and ${this.stage===3?14:20} health.`,fusion:false,color:WEAPONS[id].color};}else this.pendingReward={id:'cache',name:'Royal Cache',description:this.stage===3?'Recover 6 health. Arena caches do not increase maximum health.':'Gain 15 maximum health and recover 50 health.',color:'#f1d091'};}
     this.state='chest';this._event('chest',drop?drop.x:this.queen.x,drop?drop.y:this.queen.y,{reward:this.pendingReward.name,fusion:!!this.pendingReward.fusion});
     if(this.autoRecovery&&this.pendingReward.id==='cache')this.claimReward();return true;
   }
   claimReward(){
     if(this.state!=='chest'||!this.pendingReward)return false;const reward=this.pendingReward;
-    if(reward.ultimate){if(!this.readyUltimates().includes(reward.id))return false;this.ultimates[reward.id]=true;this.queen.hp=Math.min(this.queen.max,this.queen.hp+60);this._event('ultimate',this.queen.x,this.queen.y,{name:reward.name,color:reward.color});}
+    if(reward.ultimate){if(!this.readyUltimates().includes(reward.id))return false;this.ultimates[reward.id]=true;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.stage===3?30:60));this._event('ultimate',this.queen.x,this.queen.y,{name:reward.name,color:reward.color});}
     else if(reward.fusion){this.fused[reward.id]=true;this.queen.hp=Math.min(this.queen.max,this.queen.hp+30);}
-    else if(reward.id==='cache'){this.queen.max+=15;this.queen.hp=Math.min(this.queen.max,this.queen.hp+50);if(this.autoRecovery)this._event('autoRecovery',this.queen.x,this.queen.y,{reward:'cache',source:'chest'});}
-    else{if(!this._applyWeapon(reward.id))return false;this.queen.hp=Math.min(this.queen.max,this.queen.hp+20);}
+    else if(reward.id==='cache'){this.queen.max+=this.stage===3?0:15;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.stage===3?6:50));if(this.autoRecovery)this._event('autoRecovery',this.queen.x,this.queen.y,{reward:'cache',source:'chest'});}
+    else{if(!this._applyWeapon(reward.id))return false;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.stage===3?14:20));}
     this.pendingReward=null;this.state='playing';this._checkLevel();return true;
   }
   continueEndless(){if(this.state!=='won')return false;this.endless=true;this.state='playing';this.queen.hp=Math.max(this.queen.hp,this.queen.max*.6);return true;}

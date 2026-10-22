@@ -1,0 +1,11 @@
+/* Gameplay previews stay visible on phones as well as larger screens. */
+.gameCard{grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:26px}
+.gameCard>div{min-width:0}
+.gamePreview{display:block;position:relative;overflow:hidden;isolation:isolate;aspect-ratio:16/9;border:1px solid #617489;border-radius:12px;background:#0b1726;box-shadow:0 10px 24px #0004;text-decoration:none;transition:border-color .18s,box-shadow .18s}
+.gamePreview img{display:block;width:100%;height:100%;aspect-ratio:16/9;object-fit:cover}
+.gamePreview:after{content:"";position:absolute;inset:45% 0 0;z-index:0;background:linear-gradient(transparent,#06101c99);pointer-events:none}
+.gamePreviewPlay{position:absolute;right:12px;bottom:12px;z-index:1;padding:6px 12px;border:1px solid #f8db9e99;border-radius:999px;background:#142233ee;color:#ffe1a3;font-size:13px;font-weight:750;line-height:1.5;pointer-events:none}
+.gamePreview:hover{border-color:#f2c878;box-shadow:0 10px 28px #0006}
+.gamePreview:focus-visible{outline-color:#f2c878}
+@media(max-width:760px){.gameCard{grid-template-columns:1fr;gap:20px}.gamePreview{width:100%}}
+@media(prefers-reduced-motion:reduce){.gamePreview{transition:none}}

@@ -10,7 +10,7 @@
   <link rel="stylesheet" href="solar-system.css?v=1" />
   <script src="vendor/astronomy-2.1.19.min.js" defer></script>
   <script src="solar-ephemeris.js?v=1" defer></script>
-  <script src="solar-system.js?v=1" defer></script>
+  <script src="solar-system.js?v=2" defer></script>
 </head>
 <body class="infoPage solarPage">
   <a class="skipLink" href="#main">Skip to the solar system</a>
@@ -67,7 +67,7 @@
             </div>
           </div>
           <div id="mapViewport" class="mapViewport">
-            <svg id="solarMap" xmlns="http://www.w3.org/2000/svg" viewBox="-600 -400 1200 800" role="group" tabindex="0" aria-label="Interactive top-down map of the solar system. Drag to pan, scroll or pinch to zoom, and select a planet for details.">
+            <svg id="solarMap" xmlns="http://www.w3.org/2000/svg" viewBox="-600 -400 1200 800" role="group" tabindex="0" aria-label="Interactive top-down map of the solar system. Drag to pan, hold Control or Command while scrolling to zoom, or pinch on a touchscreen, and select a planet for details.">
               <defs>
                 <radialGradient id="sunGradient"><stop offset="0" stop-color="#fff7d5" /><stop offset=".5" stop-color="#f7cb70" /><stop offset="1" stop-color="#e99437" /></radialGradient>
                 <filter id="sunGlow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="8" /></filter>
@@ -87,7 +87,7 @@
           </div>
           <div class="mapFooter">
             <p id="viewStatus" aria-live="polite">Out to Jupiter</p>
-            <p>Drag to explore <span aria-hidden="true">·</span> Pinch or scroll to zoom</p>
+            <p>Drag to explore <span aria-hidden="true">·</span> Pinch or Ctrl/⌘ + scroll to zoom</p>
           </div>
           <p class="mapKey"><span class="orbitKey" aria-hidden="true"></span> One orbit per planet <span class="linkKey" aria-hidden="true"></span> Earth to Jupiter <span class="notToScale">Distances to scale. Markers enlarged.</span></p>
         </section>
@@ -125,7 +125,7 @@
           <p class="eyebrow">Reading the map</p>
           <h2>Space is mostly space.</h2>
           <p>The planets follow their calculated positions for the selected instant. Orbit lines trace a full revolution; they are not circular animations. Choose any planet above to bring it into view.</p>
-          <p>One astronomical unit (AU) is 149,597,870.7 kilometers, about the average Earth to Sun distance. Even at this scale, the planets would be too small to see, so their markers are enlarged. Keyboard users can focus the map and use the arrow keys to pan, + and − to zoom, and Home to reset.</p>
+          <p>One astronomical unit (AU) is 149,597,870.7 kilometers, about the average Earth to Sun distance. Even at this scale, the planets would be too small to see, so their markers are enlarged. Use a normal mouse wheel or trackpad gesture to scroll the page. To zoom the map, use its + and − buttons, hold Ctrl or Command while scrolling, or pinch on a touchscreen. Keyboard users can focus the map and use the arrow keys to pan, + and − to zoom, and Home to reset.</p>
         </div>
         <details class="positionsDetails">
           <summary>All eight planets, by the numbers</summary>

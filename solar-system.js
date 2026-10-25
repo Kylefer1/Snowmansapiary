@@ -84,7 +84,9 @@ $('#nowButton').addEventListener('click',()=>setDate(new Date(),true));
 for(const [id,days]of [['prevDate',-30],['nextDate',30]])$('#'+id).addEventListener('click',()=>setDate(new Date(state.date.getTime()+days*S.DAY_MS),false));
 for(const id of ['inner','jupiter','all'])$('#'+id+'View').addEventListener('click',()=>setPreset(id));
 $('#zoomIn').addEventListener('click',()=>zoom(1.4));$('#zoomOut').addEventListener('click',()=>zoom(1/1.4));$('#resetView').addEventListener('click',()=>setPreset('jupiter'));
-svg.addEventListener('wheel',event=>{event.preventDefault();zoom(Math.exp(-clamp(event.deltaY,-100,100)*.003),local(event));},{passive:false});
+// Let an ordinary wheel or trackpad gesture scroll the page, even over the map.
+// Ctrl/Command + wheel (including trackpad pinch) deliberately zooms the map.
+svg.addEventListener('wheel',event=>{if(!event.ctrlKey&&!event.metaKey)return;event.preventDefault();zoom(Math.exp(-clamp(event.deltaY,-100,100)*.003),local(event));},{passive:false});
 svg.addEventListener('pointerdown',event=>{if(event.pointerType==='mouse'&&event.button!==0)return;const p=local(event);points.set(event.pointerId,p);if(points.size===1)drag={start:p,moved:false,id:event.target.closest('[data-planet]')?.getAttribute('data-planet')};else if(drag)drag.moved=true;svg.setPointerCapture(event.pointerId);event.preventDefault();});
 svg.addEventListener('pointermove',event=>{
   if(!points.has(event.pointerId))return;const before=[...points.values()],old=points.get(event.pointerId),p=local(event);points.set(event.pointerId,p);if(drag&&Math.hypot(p.x-drag.start.x,p.y-drag.start.y)>7)drag.moved=true;

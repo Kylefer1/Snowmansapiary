@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#080e1b" />
+  <meta name="description" content="Explore the solar system at the current time. Compare Earth and Jupiter, choose a date, and follow the positions of all eight planets." />
+  <title>The solar system, right now | Snowman’s Apiary</title>
+  <link rel="stylesheet" href="site.css" />
+  <link rel="stylesheet" href="solar-system.css?v=1" />
+  <script src="vendor/astronomy-2.1.19.min.js" defer></script>
+  <script src="solar-ephemeris.js?v=1" defer></script>
+  <script src="solar-system.js?v=1" defer></script>
+</head>
+<body class="infoPage solarPage">
+  <a class="skipLink" href="#main">Skip to the solar system</a>
+  <div class="solarShell">
+    <header class="solarNav">
+      <a class="solarBrand" href="index.html"><span class="brandStar" aria-hidden="true">✦</span> Snowman’s Apiary</a>
+      <a class="backGames" href="games.html"><span aria-hidden="true">←</span> Back to Games</a>
+    </header>
+
+    <main id="main" tabindex="-1">
+      <section class="solarHero" aria-labelledby="pageTitle">
+        <div>
+          <p class="eyebrow">A little perspective</p>
+          <h1 id="pageTitle">The solar system,<br /><span>right now.</span></h1>
+          <p class="solarLede">Eight planets. One shared moment. See where we are, then take a look around.</p>
+        </div>
+        <div class="epochCard">
+          <span id="modeBadge" class="modeBadge">NOW</span>
+          <span class="epochLabel">Positions calculated for</span>
+          <time id="epochText">Loading the current time…</time>
+          <span class="epochNote">All times shown in UTC</span>
+        </div>
+      </section>
+
+      <section class="timePanel" aria-label="Choose the date and time">
+        <form id="dateForm" class="dateForm">
+          <label for="dateInput">Travel to a date <span>UTC</span></label>
+          <div class="dateFields">
+            <input type="datetime-local" id="dateInput" name="date" min="1800-01-01T00:00" max="2050-12-31T23:59" required />
+            <button type="submit" class="primaryButton">Show date</button>
+          </div>
+        </form>
+        <div class="timeSteps" aria-label="Change the date">
+          <button id="prevDate" type="button">−30 days</button>
+          <button id="nowButton" type="button" class="nowButton"><span aria-hidden="true">↺</span> Return to now</button>
+          <button id="nextDate" type="button">+30 days</button>
+        </div>
+      </section>
+      <p id="status" class="solarStatus" role="alert"></p>
+
+      <nav id="planetChoices" class="planetChoices" aria-label="Choose a planet"></nav>
+
+      <div class="explorerGrid">
+        <section class="mapPanel" aria-labelledby="mapTitle">
+          <div class="mapHeading">
+            <div>
+              <p class="eyebrow">The view from above</p>
+              <h2 id="mapTitle">Our planetary neighborhood</h2>
+            </div>
+            <div class="viewChoices" role="group" aria-label="Map view">
+              <button id="innerView" type="button" aria-pressed="false">Inner planets</button>
+              <button id="jupiterView" type="button" aria-pressed="true">Out to Jupiter</button>
+              <button id="allView" type="button" aria-pressed="false">All planets</button>
+            </div>
+          </div>
+          <div id="mapViewport" class="mapViewport">
+            <svg id="solarMap" xmlns="http://www.w3.org/2000/svg" viewBox="-600 -400 1200 800" role="group" tabindex="0" aria-label="Interactive top-down map of the solar system. Drag to pan, scroll or pinch to zoom, and select a planet for details.">
+              <defs>
+                <radialGradient id="sunGradient"><stop offset="0" stop-color="#fff7d5" /><stop offset=".5" stop-color="#f7cb70" /><stop offset="1" stop-color="#e99437" /></radialGradient>
+                <filter id="sunGlow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="8" /></filter>
+              </defs>
+              <g id="orbitLayer"></g>
+              <g id="linkLayer"></g>
+              <g id="bodyLayer"></g>
+              <g id="labelLayer"></g>
+              <g id="scaleLayer"></g>
+            </svg>
+            <div class="mapCompass" aria-hidden="true"><span>⊙</span> View from ecliptic north</div>
+            <div class="mapControls" role="group" aria-label="Pan and zoom controls">
+              <button id="zoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
+              <button id="zoomOut" type="button" aria-label="Zoom out" title="Zoom out">−</button>
+              <button id="resetView" type="button" aria-label="Reset map view" title="Reset map view">⌖</button>
+            </div>
+          </div>
+          <div class="mapFooter">
+            <p id="viewStatus" aria-live="polite">Out to Jupiter</p>
+            <p>Drag to explore <span aria-hidden="true">·</span> Pinch or scroll to zoom</p>
+          </div>
+          <p class="mapKey"><span class="orbitKey" aria-hidden="true"></span> One orbit per planet <span class="linkKey" aria-hidden="true"></span> Earth to Jupiter <span class="notToScale">Distances to scale. Markers enlarged.</span></p>
+        </section>
+
+        <aside class="planetPanel" aria-labelledby="selectedName">
+          <div class="selectedHeading">
+            <div id="planetGlyph" class="planetGlyph" aria-hidden="true"></div>
+            <div><p class="eyebrow">Selected planet</p><h2 id="selectedName">Earth</h2></div>
+          </div>
+          <p id="planetDescription" class="planetDescription">Our home in the solar system.</p>
+          <dl class="planetStats">
+            <div><dt>Sun distance</dt><dd id="sunDistance">Calculating…</dd></div>
+            <div><dt>Earth distance</dt><dd id="earthDistance">Calculating…</dd></div>
+            <div><dt>Longitude around the Sun</dt><dd id="longitude">Calculating…</dd></div>
+            <div><dt>Above the orbital plane</dt><dd id="latitude">Calculating…</dd></div>
+          </dl>
+          <p class="coordinateNote">Longitude is measured in the fixed J2000 ecliptic plane. A negative latitude means below that plane.</p>
+
+          <section class="comparisonPanel" aria-labelledby="comparisonTitle">
+            <p class="eyebrow">Two worlds, one moment</p>
+            <h3 id="comparisonTitle"><span class="earthDot" aria-hidden="true"></span> Earth <span class="comparisonArrow" aria-hidden="true">↔</span> <span class="jupiterDot" aria-hidden="true"></span> Jupiter</h3>
+            <p id="comparisonDistance" class="comparisonDistance">Calculating…</p>
+            <p id="comparisonKm" class="comparisonKm">Distance between the planets</p>
+            <dl class="comparisonStats">
+              <div><dt>Light travel time</dt><dd id="comparisonLightTime">Calculating…</dd></div>
+              <div><dt>Angle around the Sun</dt><dd id="comparisonAngle">Calculating…</dd></div>
+            </dl>
+            <p class="comparisonNote">The angle compares their directions from the Sun, rather than their separation in Earth’s sky.</p>
+          </section>
+        </aside>
+      </div>
+
+      <section class="underMap">
+        <div class="readMap">
+          <p class="eyebrow">Reading the map</p>
+          <h2>Space is mostly space.</h2>
+          <p>The planets follow their calculated positions for the selected instant. Orbit lines trace a full revolution; they are not circular animations. Choose any planet above to bring it into view.</p>
+          <p>One astronomical unit (AU) is 149,597,870.7 kilometers, about the average Earth to Sun distance. Even at this scale, the planets would be too small to see, so their markers are enlarged. Keyboard users can focus the map and use the arrow keys to pan, + and − to zoom, and Home to reset.</p>
+        </div>
+        <details class="positionsDetails">
+          <summary>All eight planets, by the numbers</summary>
+          <div class="positionTableWrap">
+            <table class="positionTable">
+              <caption>Positions at the selected time. Distances are in astronomical units.</caption>
+              <thead><tr><th scope="col">Planet</th><th scope="col">Sun (AU)</th><th scope="col">Earth (AU)</th><th scope="col">Longitude</th></tr></thead>
+              <tbody id="positionRows"></tbody>
+            </table>
+          </div>
+        </details>
+      </section>
+
+      <details class="accuracyDetails">
+        <summary>How the positions are calculated</summary>
+        <div class="accuracyCopy">
+          <p>This educational map uses <a href="https://github.com/cosinekitty/astronomy/tree/v2.1.19" target="_blank" rel="noopener">Astronomy Engine 2.1.19</a>, with VSOP87-based planetary calculations designed for about one arcminute of accuracy. It is a calculated view of the solar system, not a live telescope image.</p>
+          <p>The view looks down from the north side of the fixed J2000 ecliptic plane. Planets are shown at the same instant, without correcting for the time their light takes to reach Earth. Their height above or below the plane is flattened in the map and included in the details. The Earth to Jupiter line shows their geometric separation.</p>
+          <p>For research, navigation or high-precision ephemerides, use <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA JPL Horizons</a>. This map accepts dates from 1800 through 2050.</p>
+        </div>
+      </details>
+      <noscript><p class="noScript">This interactive map needs JavaScript to calculate and display planetary positions. You can explore precise ephemerides with <a href="https://ssd.jpl.nasa.gov/horizons/">NASA JPL Horizons</a>.</p></noscript>
+    </main>
+
+    <footer class="solarFooter"><p>Snowman’s Apiary <span aria-hidden="true">·</span> A little curiosity beyond the hive.</p><a href="games.html">Back to Games <span aria-hidden="true">↗</span></a></footer>
+  </div>
+</body>
+</html>

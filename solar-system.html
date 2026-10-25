@@ -4,15 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#080e1b" />
-  <meta name="description" content="Explore planets, moons, asteroids, the International Space Station and other planetary systems. Discover how the Moon helps drive ocean tides." />
+  <meta name="description" content="Explore thousands of planets and star systems, moons, asteroids, galaxies and the cosmic distance scale, with spacecraft imagery and the latest space-weather readings." />
   <title>The solar system, right now | Snowman’s Apiary</title>
   <link rel="stylesheet" href="site.css" />
-  <link rel="stylesheet" href="solar-system.css?v=3" />
+  <link rel="stylesheet" href="solar-system.css?v=4" />
   <script src="vendor/astronomy-2.1.19.min.js" defer></script>
   <script src="solar-ephemeris.js?v=3" defer></script>
   <script src="solar-catalog-data.js?v=3" defer></script>
-  <script src="solar-catalog.js?v=3" defer></script>
-  <script src="solar-system.js?v=3" defer></script>
+  <script src="solar-deep-data.js?v=4" defer></script>
+  <script src="solar-planet-facts.js?v=4" defer></script>
+  <script src="solar-catalog.js?v=4" defer></script>
+  <script src="solar-weather.js?v=4" defer></script>
+  <script src="solar-earth-clouds.js?v=4" defer></script>
+  <script src="solar-system.js?v=4" defer></script>
 </head>
 <body class="infoPage solarPage">
   <a class="skipLink" href="#main">Skip to the solar system</a>
@@ -27,13 +31,13 @@
         <div>
           <p class="eyebrow">A little perspective</p>
           <h1 id="pageTitle">The solar system,<br /><span>right now.</span></h1>
-          <p class="solarLede">From the Moon next door to worlds around another star. Pick a destination and follow your curiosity.</p>
+          <p class="solarLede">From the Moon next door to thousands of distant worlds, galaxies and the edge of the observable universe. Pick a destination and follow your curiosity.</p>
         </div>
         <div class="epochCard">
           <span id="modeBadge" class="modeBadge">NOW</span>
           <span class="epochLabel">Positions calculated for</span>
           <time id="epochText">Loading the current time…</time>
-          <span class="epochNote">All times shown in UTC</span>
+          <span class="epochNote">All times shown in UTC</span><time id="viewerClock" class="viewerClock"></time>
         </div>
       </section>
 
@@ -57,9 +61,14 @@
 
       <section class="scaleBar" aria-label="Explore at a different scale">
         <button id="solarView" type="button" aria-pressed="true">☀ Solar system</button>
-        <div class="moonDestination"><label for="moonParent">Moons of</label><select id="moonParent"><option>Earth</option><option>Mars</option><option>Jupiter</option><option>Saturn</option><option>Uranus</option><option>Neptune</option></select><button id="moonView" type="button">Explore moons ↗</button></div>
+        <div class="moonDestination"><label for="moonParent">Close-up of</label><select id="moonParent"><option>Mercury</option><option>Venus</option><option selected>Earth</option><option>Mars</option><option>Jupiter</option><option>Saturn</option><option>Uranus</option><option>Neptune</option></select><button id="moonView" type="button">Explore close-up ↗</button></div>
         <button id="satelliteView" type="button">Earth satellites ↗</button>
-        <button id="starsView" type="button">Other planetary systems ↗</button>
+        <button id="starsView" type="button">Stars &amp; planets ↗</button>
+      </section>
+      <section class="catalogToolbar" aria-label="Find objects and choose a cosmic scale">
+        <div class="catalogFind"><label for="catalogSearch">Find a planet, star system or deep-sky object</label><input id="catalogSearch" type="search" placeholder="Try Kepler-90, Orion, Andromeda…" autocomplete="off" aria-controls="searchResults"/><p id="catalogCount" class="smallNote"></p><div id="searchResults" class="searchResults" aria-live="polite"></div></div>
+        <div class="scaleDestination"><label for="scaleSelect">Travel farther</label><select id="scaleSelect"><option value="solar">Sun and planets</option><option value="oort">Oort Cloud scale</option><option value="nearby">Nearby planetary systems</option><option value="milkyway">Across the Milky Way</option><option value="galaxies">Local Group and galaxies</option><option value="clusters">Galaxy clusters</option><option value="universe">Observable-universe scale</option></select><button id="scaleGo" type="button">Go to this scale ↗</button></div>
+        <div class="graphicsSetting"><label><input id="enhancedGraphics" type="checkbox"/> Enhanced graphics</label><span>Spacecraft imagery, atmosphere glow and gentle visual effects. Images show appearance, not live weather or current surface orientation.</span><button id="weatherView" type="button">☀ Latest space weather ↗</button></div>
       </section>
       <p id="sceneNote" class="sceneNote" aria-live="polite"></p>
       <nav id="contextChoices" class="contextChoices" aria-label="Objects in this view"></nav>
@@ -79,12 +88,13 @@
             </div>
           </div>
           <div id="mapViewport" class="mapViewport">
-            <svg id="solarMap" xmlns="http://www.w3.org/2000/svg" viewBox="-600 -400 1200 800" role="group" tabindex="0" aria-label="Interactive top-down map of the solar system. Drag to pan, hold Control or Command while scrolling to zoom, or pinch on a touchscreen, and select a planet for details.">
+            <svg id="solarMap" xmlns="http://www.w3.org/2000/svg" viewBox="-600 -400 1200 800" role="group" tabindex="0" aria-label="Interactive top-down map of the solar system. Drag to pan, hold Control or Command while scrolling to zoom, or pinch on a touchscreen, and select an object for details. Double tap or double click an object to focus and explore it.">
               <defs>
                 <radialGradient id="sunGradient"><stop offset="0" stop-color="#fff7d5" /><stop offset=".5" stop-color="#f7cb70" /><stop offset="1" stop-color="#e99437" /></radialGradient>
+                <filter id="planetBloom" x="-100%" y="-100%" width="300%" height="300%"><feGaussianBlur stdDeviation="2"/></filter>
                 <filter id="sunGlow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="8" /></filter>
               </defs>
-              <g id="orbitLayer"></g>
+              <g id="regionLayer" aria-hidden="true"></g><path id="catalogDots" fill="none" stroke="#a6b9d0" stroke-width="2" stroke-linecap="round" pointer-events="none"/><g id="orbitLayer"></g>
               <g id="bodyLayer"></g>
               <g id="labelLayer"></g>
               <g id="scaleLayer"></g>
@@ -99,7 +109,7 @@
           </div>
           <div class="mapFooter">
             <p id="viewStatus" aria-live="polite">Out to Jupiter</p>
-            <p>Drag to explore <span aria-hidden="true">·</span> Pinch or Ctrl/⌘ + scroll to zoom</p>
+            <p>Drag to explore <span aria-hidden="true">·</span> Pinch to travel · Double-tap to explore</p>
           </div>
           <div class="mapKey"><label id="asteroidControl"><input id="asteroidToggle" type="checkbox" checked /> Show selected asteroids</label><span id="mapScaleNote" class="notToScale">Distances to scale. Markers enlarged.</span></div>
         </section>
@@ -109,7 +119,7 @@
             <div id="planetGlyph" class="planetGlyph" aria-hidden="true"></div>
             <div><p id="selectedKind" class="eyebrow">Selected planet</p><h2 id="selectedName">Earth</h2></div>
           </div>
-          <p id="planetDescription" class="planetDescription">Our home in the solar system.</p>
+          <p id="planetDescription" class="planetDescription">Our home in the solar system.</p><dl id="objectExtras" class="objectExtras"></dl><p id="imageryCaption" class="smallNote imageryCaption" hidden></p>
           <dl class="planetStats">
             <div><dt id="distanceLabel">Sun distance</dt><dd id="sunDistance">Calculating…</dd></div>
             <div><dt id="distance2Label">Earth distance</dt><dd id="earthDistance">Calculating…</dd></div>
@@ -138,18 +148,65 @@
         <div class="issReadout"><p id="issStatus" role="status">Waiting for the satellite feed.</p><dl><div><dt>Altitude</dt><dd id="issAltitude">Unavailable</dd></div><div><dt>Speed</dt><dd id="issSpeed">Unavailable</dd></div><div><dt>Position time (UTC)</dt><dd id="issTime">Unavailable</dd></div></dl><div class="issButtons"><button id="lowOrbitView" type="button">Zoom to low Earth orbit</button><button id="refreshISS" type="button">Refresh ISS</button></div><p class="smallNote">Feed: Where the ISS at? This first satellite layer tracks the ISS only. A past or future date pauses the feed; missing or old data is never shown as live.</p></div>
       </section>
 
+      <section id="earthCloudPanel" class="earthCloudPanel" aria-labelledby="earthCloudTitle" hidden>
+        <div><p class="eyebrow">Observed clouds</p><h2 id="earthCloudTitle">Earth from a satellite</h2><p>These clouds come from satellite observations. NOAA's GeoColor view faces the Americas and updates about every ten minutes. Daytime uses visible imagery; at night, infrared observations show clouds over a background that includes city lights. NASA EPIC shows the sunlit hemisphere, with a longer publication delay.</p><p class="smallNote">The photograph keeps its satellite viewing angle. It is not aligned to the map's orbital plane, and it does not show the whole globe at once. A selected past or future orbital date uses the historical illustration instead.</p></div>
+        <div class="earthCloudSettings"><label><input id="earthCloudToggle" type="checkbox" checked/> Use the latest published satellite clouds</label><label for="earthCloudSource">Satellite view</label><select id="earthCloudSource"><option value="goes">NOAA GOES-19 · Americas · frequent updates</option><option value="epic">NASA EPIC · sunlit Earth · delayed images</option></select><p id="earthCloudStatus" role="status">Open an Earth close-up to load the latest image.</p><button id="earthCloudRefresh" type="button">Refresh Earth image</button><p class="smallNote">Imagery: CIRA/NOAA and NASA EPIC Team. Original capture time is shown after the image loads. This feed is separate from the calculated orbital clock.</p></div>
+      </section>
+
+      <section id="weatherPanel" class="weatherPanel" aria-labelledby="weatherTitle">
+        <div><p class="eyebrow">A changing star</p><h2 id="weatherTitle">Latest space weather</h2><p>Solar wind is charged material streaming from the Sun. Spacecraft upstream of Earth measure its speed and magnetic field. The Kp index summarizes how disturbed Earth’s magnetic environment is, from 0 to 9.</p><p class="smallNote">These are NOAA’s latest published readings, independent of the date chosen for the orbital map. A southward magnetic field can help solar-wind energy enter Earth’s magnetic environment.</p></div>
+        <div><div id="weatherReadings" class="weatherReadings"><article><span>Solar-wind speed</span><strong id="windValue">Waiting</strong><time id="windTime"></time></article><article><span>North/south field, Bz</span><strong id="fieldValue">Waiting</strong><time id="fieldTime"></time></article><article><span>Geomagnetic Kp</span><strong id="kpValue">Waiting</strong><time id="kpTime"></time></article></div><p id="weatherStatus" role="status">Readings load when this section comes into view.</p><button id="weatherRefresh" type="button">Refresh readings</button><p class="smallNote">Source: NOAA Space Weather Prediction Center. Checked every five minutes while this page is visible. Each reading keeps its own observation time; unavailable values are never replaced with zero.</p></div>
+      </section>
+
       <section class="tideSection" aria-labelledby="tideTitle">
         <div class="tideCopy"><p class="eyebrow">The Moon at work</p><h2 id="tideTitle">Why does the ocean rise and fall?</h2><p>The Moon pulls a little more strongly on Earth’s near side than on its center, and a little less strongly on the far side. That difference stretches the oceans into a broad pattern with two high-tide regions.</p><p>The Sun adds a smaller tidal effect. Around new and full moon, the effects reinforce each other, producing a larger tidal range called a <strong>spring tide</strong>. Around the quarter moons, they partly offset, giving a smaller <strong>neap tide</strong>. “Spring” here has nothing to do with the season.</p><p>Earth rotates through this changing pattern, but coastlines, ocean depth and weather reshape it. This explains the forces; it cannot tell you the tide time at your beach.</p><p class="smallNote">Tidal forces also flex moons. Inside Io and Enceladus, that repeated flexing helps generate heat.</p></div>
         <div class="tideExperiment"><svg id="tideMap" viewBox="-210 -160 420 320" role="img" aria-label="Illustrated Sun, Earth and Moon tidal forces"><defs><radialGradient id="tideEarth"><stop stop-color="#84bdce"/><stop offset="1" stop-color="#285478"/></radialGradient></defs><text x="160" y="-115" class="tideSunText">SUN →</text><path d="M140 -45H195M145 0H195M140 45H195" class="sunRays"/><path id="tideWater" fill="#5bb0d73a" stroke="#83cde9" stroke-width="1.5"/><circle r="58" fill="url(#tideEarth)"/><path d="M-24 -36L-8 -30 1 -12 -12 3 -5 22 -18 40 -32 16 -21 -6 -37 -18ZM21 -38L42 -11 27 1 35 16 14 24 7 8 17 -5 7 -24Z" fill="#659c83" opacity=".7"/><text x="0" y="5" text-anchor="middle" class="tideEarthText">EARTH</text><circle r="126" class="tideMoonOrbit"/><g id="tideMoon"><circle r="11" fill="#d2d0c2"/><text x="17" y="5" class="tideMoonText">Moon</text></g></svg><div class="tideControl"><label for="tidePhase">Move the Moon <strong id="tidePhaseName">New moon</strong></label><input id="tidePhase" type="range" min="0" max="360" step="1" value="0"/><div class="tidePresets"><button type="button" data-phase="0">New</button><button type="button" data-phase="90">First quarter</button><button type="button" data-phase="180">Full</button><button type="button" data-phase="270">Last quarter</button></div><p id="tideExplanation" aria-live="polite"></p><button id="currentTidePhase" type="button">Use the selected date’s Moon phase</button><p class="smallNote">An exaggerated, idealized diagram. Sizes, separations and ocean bulges are not to scale. Real tidal bulges do not align perfectly with the Moon.</p></div></div>
       </section>
 
+<section class="cosmicGuide" aria-labelledby="cosmicGuideTitle">
+  <h2 id="cosmicGuideTitle">A field guide to the wider universe</h2>
+  <p>Open a topic to explore the science behind the places on the map.</p>
+  <div class="cosmicTopics">
+    <details class="cosmicCard">
+      <summary>Beyond Neptune: the Sun's distant outskirts</summary>
+      <p>Neptune is not the edge of the solar system. Beyond the Kuiper Belt, the proposed Oort Cloud may contain a vast, roughly spherical reservoir of icy bodies, thousands to perhaps 100,000 astronomical units from the Sun. Its existence is inferred from comet orbits; nobody has photographed the cloud as a whole.</p>
+      <p>The heliosphere is a different boundary: a bubble shaped by the solar wind and magnetic field. Crossing its outer boundary, the heliopause, reaches interstellar space, while the Sun's gravity still holds objects much farther away.</p>
+    </details>
+    <details class="cosmicCard">
+      <summary>How we discover planets around other stars</summary>
+      <p>A transit is a tiny dip in starlight when a planet crosses its star. Radial velocity measures changes in a star's motion caused by an orbiting planet's gravity. Together, suitable observations can constrain a planet's size, mass and density without showing its surface.</p>
+      <p>Discovery methods favor some worlds over others. Big planets close to their stars are often easier to find, and most systems never line up for transits. Blank space on this map is not proof of empty space. Exoplanet appearances and orbital angles here are illustrations, not resolved surface photographs.</p>
+    </details>
+    <details class="cosmicCard">
+      <summary>Our galaxy and the larger neighborhoods</summary>
+      <p>The Milky Way is a disk of stars more than 100,000 light-years across. Our solar system is one small part of it. The Milky Way, Andromeda, Triangulum and many dwarf galaxies belong to the Local Group, a collection held together by gravity.</p>
+      <p>Farther out, galaxy clusters can contain hundreds or thousands of galaxies, hot gas and dark matter. Clusters and vast filaments surround enormous voids in the cosmic web. The landmarks in this explorer are a small selection, not a complete census of these structures.</p>
+    </details>
+    <details class="cosmicCard">
+      <summary>Nebulae, star clusters and stellar lives</summary>
+      <p>Gravity can gather cold gas and dust into new stars. Many are born together in clusters, so neighboring stars can share a common origin. A glowing nebula may surround young stars, but other nebulae are shells shed by aging stars or the wreckage of explosions.</p>
+      <p>A star's mass strongly shapes its future. The Sun will eventually shed its outer layers and leave a white dwarf. Some much heavier stars explode as supernovae, leaving neutron stars or black holes and spreading material that can join future generations of stars.</p>
+    </details>
+    <details class="cosmicCard">
+      <summary>Black holes and the light around them</summary>
+      <p>A black hole's event horizon is a boundary beyond which light cannot escape. The bright material in black-hole images is outside that boundary: hot gas and light bent by strong gravity. Astronomers also study the motions of nearby stars and gravitational waves to uncover otherwise invisible black holes.</p>
+      <p>M87 contains a supermassive black hole whose surroundings have been imaged by the Event Horizon Telescope. A quasar is an exceptionally luminous active galactic center powered by material feeding a supermassive black hole. Its light comes from that energetic environment, not from inside the horizon.</p>
+    </details>
+    <details class="cosmicCard">
+      <summary>Looking farther also means looking back</summary>
+      <p>Light takes time to travel. Seeing a galaxy millions of light-years away means receiving light it emitted millions of years ago. On the largest scales, cosmic expansion stretches that light and makes the relationship between distance and travel time more complicated.</p>
+      <p>The universe is about 13.8 billion years old, yet the observable region is roughly 92 billion light-years across today because space has expanded during the journey. The horizon ring is a scale guide, not a physical wall. Science has no reliable measurement of the size of the entire universe.</p>
+    </details>
+  </div>
+</section>
+
       <section class="underMap">
         <div class="readMap">
           <p class="eyebrow">Reading the map</p>
           <h2>Space is mostly space.</h2>
-          <p>The planets follow their calculated positions for the selected instant. Zoom out beyond the outer solar system to reach a chart of selected stars, then open one to explore its planets. Use “Moons of” or the selected planet’s moon button for a close-up.</p>
+          <p>The planets follow their calculated positions for the selected instant. Zoom out beyond the outer solar system to reach a chart of selected stars, then open one to explore its planets. Use “Close-up of” or double-tap a planet to explore its neighborhood.</p>
           <p>The Moon and Jupiter’s four Galilean moons use calculated positions. Other moon atlases and exoplanet systems show orbital sizes with illustrative placements, clearly labeled in each view. There is no single useful scale for both planetary orbits and the vast distances between stars, so the chart changes units at that boundary.</p>
-          <p>One astronomical unit (AU) is 149,597,870.7 kilometers, about the average Earth to Sun distance. Even at this scale, the planets would be too small to see, so their markers are enlarged. Use a normal mouse wheel or trackpad gesture to scroll the page. To zoom the map, use its + and − buttons, hold Ctrl or Command while scrolling, or pinch on a touchscreen. Keyboard users can focus the map and use the arrow keys to pan, + and − to zoom, and Home to reset.</p>
+          <p>One astronomical unit (AU) is 149,597,870.7 kilometers, about the average Earth to Sun distance. Even at this scale, the planets would be too small to see, so their markers are enlarged. Use a normal mouse wheel or trackpad gesture to scroll the page. To zoom the map, use its + and − buttons, hold Ctrl or Command while scrolling, or pinch on a touchscreen. Keep pinching to move between scales. Double-tap or double-click a planet to explore its neighborhood. Use search to visit thousands of published planetary systems and selected nebulae, galaxies and clusters. Keyboard users can focus the map and use the arrow keys to pan, + and − to zoom, and Home to reset.</p>
         </div>
         <details class="positionsDetails">
           <summary>All eight planets, by the numbers</summary>
@@ -172,6 +229,7 @@
           <p>For research, navigation or high-precision ephemerides, use <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA JPL Horizons</a>. This map accepts dates from 1800 through 2050.</p>
         </div>
       </details>
+      <details class="accuracyDetails"><summary>Imagery credits and the larger atlas</summary><div class="accuracyCopy"><p>Enhanced graphics use real mission imagery, cropped and resized for this display. Mercury and grayscale Venus: NASA/Johns Hopkins APL/Carnegie Institution of Washington. Earth: NASA Goddard/VIIRS composite. Mars: NASA/JPL-Caltech/USGS. Jupiter: NASA/JPL/University of Arizona, Cassini true-color mosaic. Saturn: NASA/JPL/Space Science Institute, Cassini. These base images are historical photographs and composites. The separate Earth cloud option uses the latest published NOAA or NASA observations, with their capture times. Decorative glows do not measure a planet’s atmosphere.</p><p>Uranus and Neptune use the corrected-color 2024 image by Patrick Irwin/University of Oxford/NASA, cropped from the lower row and used under <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener">CC BY 4.0</a>. <a href="https://ras.ac.uk/media/1488" target="_blank" rel="noopener">Original image and credit</a>. This avoids the exaggerated blue in some familiar Voyager releases.</p><p>The larger catalog is a 25 October 2026 NASA Exoplanet Archive snapshot. Only systems with published stellar distances and planetary orbit sizes and periods can be mapped here. Missing measurements are not invented. Orbit angles and exoplanet colors are illustrative. Deep-sky centers and approximate distances come from NASA educational catalogs and CDS SIMBAD; estimates differ between studies.</p><p>The inferred Oort Cloud is a region estimated from comet orbits. The cosmic scale rings are comparisons, not physical walls. The observable horizon has an approximate present-day radius of 46 billion light-years; the size of the entire universe is unknown. Expansion means present-day distances differ from light-travel times. This is a selection of measured objects and a scale guide, not a complete galaxy survey.</p></div></details>
       <noscript><p class="noScript">This interactive map needs JavaScript to calculate and display planetary positions. You can explore precise ephemerides with <a href="https://ssd.jpl.nasa.gov/horizons/">NASA JPL Horizons</a>.</p></noscript>
     </main>
 

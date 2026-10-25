@@ -57,7 +57,6 @@
 .selectedPlanet{stroke:var(--solarGold);stroke-width:2;vector-effect:non-scaling-stroke}
 .planetLabel{fill:#b5c2d4;font-size:12px;font-family:inherit;letter-spacing:.3px;paint-order:stroke;stroke:#090f1d;stroke-width:3px;stroke-linejoin:round;pointer-events:none;user-select:none}
 .sunLabel{fill:#e8c67f;font-size:10px;font-family:inherit;letter-spacing:1.7px;text-transform:uppercase;paint-order:stroke;stroke:#090f1d;stroke-width:3px;pointer-events:none}
-.earthJupiterLine{stroke:#c3aa77;stroke-width:1.4;stroke-dasharray:4 5;fill:none;opacity:.75;vector-effect:non-scaling-stroke;pointer-events:none}
 .scaleLabel{fill:#8e9eb5;font-size:10px;font-family:inherit;letter-spacing:.5px;paint-order:stroke;stroke:#090f1d;stroke-width:3px;pointer-events:none}
 .mapCompass{position:absolute;left:20px;top:17px;display:flex;align-items:center;gap:7px;color:#6e7f97;font-size:9px;letter-spacing:.6px;pointer-events:none}
 .mapCompass span{font-size:17px;font-weight:300;line-height:1}
@@ -128,3 +127,55 @@
 @media(max-width:900px){.solarShell{padding:0 20px}.solarHero{padding-top:35px;gap:25px}.solarHero h1{font-size:45px}.epochCard{max-width:245px;padding-left:19px}#epochText{font-size:13px}.timePanel{align-items:flex-start;gap:18px;flex-direction:column}.timeSteps{align-self:stretch;justify-content:flex-start}.dateForm{width:100%}.dateFields{max-width:500px}.dateFields input{flex:1;min-width:0}.planetChoices{gap:4px}.planetChoices button{flex-basis:80px;padding:9px 7px;gap:6px;font-size:11px}.explorerGrid{grid-template-columns:minmax(0,1fr)}.mapHeading{display:flex;align-items:center}.viewChoices{margin-top:0;justify-content:flex-end}.mapViewport{height:600px}.planetPanel{display:grid;grid-template-columns:1fr 1fr;gap:0 28px;padding:24px}.selectedHeading{grid-column:1}.planetDescription{grid-column:1;margin:16px 0;min-height:0}.planetStats{grid-column:1}.coordinateNote{grid-column:1;margin:8px 0 0}.comparisonPanel{grid-column:2;grid-row:1 / span 4;border-top:0;border-left:1px solid var(--solarLine);padding:6px 0 0 28px;margin:0}.comparisonDistance{font-size:40px}.comparisonPanel h3{margin-bottom:24px}.comparisonKm{margin-bottom:24px}.comparisonStats>div{margin-top:13px}.comparisonNote{margin-top:20px;max-width:28ch}.underMap{gap:25px;padding-top:30px}.accuracyCopy{grid-template-columns:1fr;gap:0}.mapKey .notToScale{width:auto;margin-left:auto}}
 @media(max-width:620px){.solarShell{padding:0 14px}.solarNav{min-height:70px;gap:12px}.solarBrand{font-size:13px;gap:8px}.brandStar{font-size:19px}.backGames{font-size:11px}.solarHero{display:block;padding:29px 0 24px}.solarHero h1{font-size:42px;letter-spacing:-1.5px;margin-bottom:15px}.solarHero .eyebrow{font-size:9px;margin-bottom:14px}.solarLede{font-size:13px;max-width:34ch}.epochCard{margin-top:24px;padding:0;max-width:none;border:0;display:grid;grid-template-columns:auto 1fr;gap:2px 11px}.modeBadge{grid-column:1;grid-row:1 / span 2;align-self:center;margin:0;padding:4px 7px;font-size:8px;min-height:27px}.epochLabel{display:none}#epochText{grid-column:2;grid-row:1;font-size:12px;font-weight:600}.epochNote{grid-column:2;grid-row:2;font-size:9px}.timePanel{padding:15px;gap:15px}.dateForm label{font-size:11px}.dateFields{gap:7px}.solarPage input[type="datetime-local"]{font-size:12px;padding:8px;min-width:0}.dateFields .primaryButton{font-size:11px;padding:9px 12px;white-space:nowrap}.timeSteps{display:grid;grid-template-columns:1fr 1.25fr 1fr;gap:6px}.timeSteps button{padding:9px 7px;font-size:10px}.nowButton span{font-size:14px;margin-right:1px}.planetChoices{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;margin:16px 0}.planetChoices button{min-width:0;min-height:44px;gap:6px;padding:8px 5px;font-size:10px;background:rgba(21,32,51,.6)}.planetChoices .planetDot,.planetChoices .planetSwatch{width:7px;height:7px}.mapHeading{display:block;padding:17px 15px 13px}.mapHeading .eyebrow{font-size:8px}.mapHeading h2{font-size:16px}.viewChoices{display:grid;grid-template-columns:1fr 1.2fr 1fr;justify-content:initial;gap:5px;margin-top:14px}.viewChoices button{font-size:10px;min-height:44px;padding:8px 6px;border:1px solid rgba(155,179,214,.11)}.mapViewport{height:480px}.mapCompass{left:14px;top:13px;font-size:8px}.mapControls{right:12px;bottom:13px}.mapFooter{display:block;padding:11px 14px;font-size:9px}.mapFooter p:last-child{margin-top:3px;font-size:9px}.mapKey{padding:10px 14px 13px;font-size:8px;gap:5px}.mapKey .notToScale{width:100%;margin:0}.linkKey{margin-left:8px}.planetPanel{display:block;padding:22px 20px}.selectedHeading{gap:15px}.selectedHeading h2{font-size:30px}.planetGlyph{width:52px;height:52px}.planetDescription{font-size:12px;margin:17px 0 18px}.planetStats>div{padding:12px 0}.planetStats dt{max-width:none;font-size:11px}.planetStats dd{font-size:13px}.coordinateNote{margin:7px 0 20px;font-size:9px}.comparisonPanel{border-top:1px solid #3d4c64;border-left:0;padding:23px 0 0;margin-top:22px}.comparisonPanel h3{font-size:14px;margin-bottom:18px}.comparisonDistance{font-size:38px}.comparisonKm{font-size:11px;margin-bottom:20px}.comparisonStats{font-size:11px}.comparisonNote{max-width:none;font-size:10px;margin-top:17px}.underMap{display:block;padding:28px 3px 24px}.readMap h2{font-size:22px}.readMap p:not(.eyebrow){font-size:12px;max-width:none}.positionsDetails{margin-top:25px}.accuracyDetails{margin:0 3px}.solarPage .accuracyDetails summary{font-size:11px}.accuracyCopy{padding-bottom:17px}.accuracyCopy p{font-size:11px}.solarFooter{display:block;padding:23px 3px 28px;line-height:1.8}.solarFooter a{display:inline-block;margin-top:8px;min-height:32px}.solarFooter p{font-size:9px}.solarFooter p span{margin:0 3px}}
 @media(prefers-reduced-motion:reduce){.solarPage button{transition:none}}
+
+/* Each scale keeps its units and data model visible, including on a phone. */
+.solarPage [hidden]{display:none!important}
+.scaleBar{display:flex;gap:10px;flex-wrap:wrap;padding:14px;border:1px solid var(--solarLine);border-radius:12px;background:#111b2b;align-items:center}
+.scaleBar>button{flex:1 1 auto}
+.moonDestination{display:flex;align-items:center;gap:8px;flex:2 1 auto}
+.moonDestination label{font-size:11px;color:#9daec4;white-space:nowrap}
+.solarPage select{font:inherit;color:#dde7f6;background:#0c1424;border:1px solid #35415a;border-radius:7px;padding:9px;min-height:44px;font-size:12px;flex:1;min-width:0;color-scheme:dark}
+.sceneNote{font-size:12px;color:#b9c7da;line-height:1.8;margin:15px 2px 10px;max-width:110ch}
+.contextChoices{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 18px;min-height:0}
+.contextChoices button{font-size:11px;min-height:40px;padding:8px 12px}
+.contextChoices .smallBodyChoice{border-color:#655d46;color:#d8c89e}
+.exploreSelected{width:100%;margin:4px 0 12px;text-align:left;color:#efdaaa!important;border-color:#736548!important}
+.selectedHeading h2{overflow-wrap:anywhere;font-size:clamp(23px,2.2vw,30px)}
+.planetStats dd{white-space:normal;overflow-wrap:anywhere}
+.planetDescription{min-height:0}
+.mapTip{position:absolute;left:16px;right:80px;bottom:66px;max-width:340px;padding:12px 14px;background:#111c2ff2;border:1px solid #52647c;border-radius:9px;color:#d1ddec;font-size:11px;line-height:1.7;box-shadow:0 6px 24px #0008;pointer-events:none}
+.mapTip strong{display:block;color:#f2dba8;font-size:12px;margin-bottom:3px}
+.mapKey label{display:flex;align-items:center;gap:8px;color:#b0bfd2;font-size:11px;min-height:36px;cursor:pointer}
+.mapKey input{width:17px;height:17px;accent-color:#d9bd7d}
+.smallBodyOrbit{stroke-dasharray:2 6}
+.issMarker{fill:#b3efc9;stroke:#17382c;stroke-width:1}
+.issPanel{display:grid;grid-template-columns:1fr 1fr;gap:40px;border:1px solid #39514b;background:linear-gradient(115deg,#122a2b80,#131e30);padding:26px;border-radius:12px;margin-top:22px}
+.issPanel h2,.tideSection h2{font-size:27px;line-height:1.25;letter-spacing:-.5px;font-weight:550;margin:0 0 18px}
+.issPanel p:not(.eyebrow){color:#a4b6cc;font-size:12px;line-height:1.9}
+.issReadout>p:first-child{color:#b3efc9;margin-top:0;min-height:24px}
+.issReadout dl{margin:0 0 16px;font-size:12px;font-variant-numeric:tabular-nums}
+.issReadout dl>div{display:flex;justify-content:space-between;gap:16px;padding:8px 0;border-bottom:1px solid var(--solarLine)}
+.issReadout dt{color:#8c9fb7}.issReadout dd{margin:0;color:#deebf6;text-align:right}
+.issButtons{display:flex;gap:8px;flex-wrap:wrap}
+.solarPage .smallNote{font-size:10px!important;color:#8297b3!important;line-height:1.8}
+.tideSection{display:grid;grid-template-columns:1fr 1fr;gap:50px;padding:50px 0 16px;align-items:center}
+.tideCopy p:not(.eyebrow){font-size:13px;color:#9eafc5;line-height:1.95;margin:0 0 14px}
+.tideCopy strong{color:#dbe9f3;font-weight:600}
+.tideExperiment{border:1px solid var(--solarLine);border-radius:14px;background:linear-gradient(145deg,#17263a88,#0e1624);padding:14px 20px 18px;min-width:0}
+#tideMap{width:100%;max-height:310px;display:block}
+.tideMoonOrbit{fill:none;stroke:#73849944;stroke-width:1}
+.sunRays{stroke:#e6c88466;stroke-width:1.5}
+.tideSunText{font-size:10px;fill:#e6c884;text-anchor:middle;letter-spacing:1px}
+.tideEarthText{font-size:10px;fill:#c6e3ed;letter-spacing:1px}
+.tideMoonText{font-size:10px;fill:#adb9cc;paint-order:stroke;stroke:#101b2b;stroke-width:3px}
+.tideControl label{font-size:12px;color:#9aadc8;display:flex;justify-content:space-between;gap:10px}
+.tideControl label strong{color:#ecdbb6;font-weight:600}
+.tideControl input[type=range]{width:100%;min-height:40px;accent-color:#d9bd7d;cursor:pointer;margin:4px 0}
+.tidePresets{display:grid;grid-template-columns:repeat(4,1fr);gap:5px}
+.tidePresets button{font-size:10px;padding:8px 4px}
+#tideExplanation{font-size:12px;color:#c4d4e5;line-height:1.8;min-height:44px}
+#currentTidePhase{font-size:10px;width:100%}
+.accuracyCopy{grid-template-columns:repeat(2,1fr)}
+@media(max-width:1190px){.viewChoices button{padding:7px;font-size:9px}.tideSection{gap:28px}.issPanel{gap:24px}}
+@media(max-width:900px){.scaleBar{gap:8px}.moonDestination{flex-basis:100%;order:2}.scaleBar>button{font-size:11px}.tideSection{gap:25px}.tideCopy p:not(.eyebrow){font-size:12px}.planetPanel .exploreSelected{grid-column:1}.planetPanel .comparisonPanel{grid-row:1 / span 5}.coordinateNote{grid-column:1}}
+@media(max-width:620px){.scaleBar{padding:10px;display:grid;grid-template-columns:1fr 1fr}.scaleBar>button{font-size:10px;padding:9px 7px}.scaleBar #solarView{grid-column:1 / -1}.moonDestination{grid-column:1 / -1;order:initial;gap:6px;flex-wrap:wrap}.moonDestination label{font-size:10px}.moonDestination button{font-size:10px;min-width:0;flex:1}.moonDestination select{flex:1;max-width:120px}.sceneNote{font-size:11px;margin-top:12px}.contextChoices{gap:5px}.contextChoices button{padding:8px 9px;font-size:10px}.viewChoices{grid-template-columns:1fr 1.1fr 1fr 1fr}.mapCompass{max-width:90%;font-size:8px}.mapTip{left:10px;bottom:62px;font-size:10px;padding:9px 11px;right:70px}.mapTip strong{font-size:11px}.mapKey{display:block}.mapKey .notToScale{display:block;margin-top:5px;font-size:9px}.issPanel{display:block;padding:20px}.issReadout{margin-top:22px}.issPanel h2,.tideSection h2{font-size:25px}.tideSection{display:block;padding-top:35px}.tideExperiment{margin-top:23px;padding:12px 15px 18px}.tidePresets button{font-size:9px}.accuracyCopy{grid-template-columns:1fr}.selectedHeading h2{font-size:29px}}

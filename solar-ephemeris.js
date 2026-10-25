@@ -12,7 +12,7 @@ const PLANETS=[
   {id:'Venus',color:'#e4c68e',radius:7,kind:'Rocky planet',description:'Our neighboring planet travels on an orbit inside Earth’s. Its bright cloud cover hides the surface below.'},
   {id:'Earth',color:'#63cbe8',radius:8,kind:'Our home',description:'You are here. The blue marker shows Earth’s calculated position around the Sun at the displayed time.'},
   {id:'Mars',color:'#df886c',radius:6,kind:'Rocky planet',description:'The red planet lies just outside Earth’s orbit. Its changing position helps show why distances between planets keep changing.'},
-  {id:'Jupiter',color:'#d8b195',radius:13,kind:'Gas giant',description:'The largest planet travels far beyond the rocky inner worlds. The highlighted line connects its position with Earth’s.'},
+  {id:'Jupiter',color:'#d8b195',radius:13,kind:'Gas giant',description:'The largest planet travels far beyond the rocky inner worlds. Explore its neighborhood to follow Io, Europa, Ganymede and Callisto.'},
   {id:'Saturn',color:'#d4c497',radius:11,kind:'Gas giant',description:'A distant gas giant known for its rings. Switch to all eight planets to see its place in the outer solar system.'},
   {id:'Uranus',color:'#9edcd8',radius:9,kind:'Ice giant',description:'This ice giant follows a long path around the Sun, well beyond Saturn. Its movement is slow on a human calendar.'},
   {id:'Neptune',color:'#749fee',radius:9,kind:'Ice giant',description:'The outermost of the eight planets. A complete trip around the Sun takes far longer than a human lifetime.'}

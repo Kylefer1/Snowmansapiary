@@ -4,13 +4,15 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#080e1b" />
-  <meta name="description" content="Explore the solar system at the current time. Compare Earth and Jupiter, choose a date, and follow the positions of all eight planets." />
+  <meta name="description" content="Explore planets, moons, asteroids, the International Space Station and other planetary systems. Discover how the Moon helps drive ocean tides." />
   <title>The solar system, right now | Snowman’s Apiary</title>
   <link rel="stylesheet" href="site.css" />
-  <link rel="stylesheet" href="solar-system.css?v=1" />
+  <link rel="stylesheet" href="solar-system.css?v=3" />
   <script src="vendor/astronomy-2.1.19.min.js" defer></script>
-  <script src="solar-ephemeris.js?v=1" defer></script>
-  <script src="solar-system.js?v=2" defer></script>
+  <script src="solar-ephemeris.js?v=3" defer></script>
+  <script src="solar-catalog-data.js?v=3" defer></script>
+  <script src="solar-catalog.js?v=3" defer></script>
+  <script src="solar-system.js?v=3" defer></script>
 </head>
 <body class="infoPage solarPage">
   <a class="skipLink" href="#main">Skip to the solar system</a>
@@ -25,7 +27,7 @@
         <div>
           <p class="eyebrow">A little perspective</p>
           <h1 id="pageTitle">The solar system,<br /><span>right now.</span></h1>
-          <p class="solarLede">Eight planets. One shared moment. See where we are, then take a look around.</p>
+          <p class="solarLede">From the Moon next door to worlds around another star. Pick a destination and follow your curiosity.</p>
         </div>
         <div class="epochCard">
           <span id="modeBadge" class="modeBadge">NOW</span>
@@ -35,7 +37,7 @@
         </div>
       </section>
 
-      <section class="timePanel" aria-label="Choose the date and time">
+      <section id="timePanel" class="timePanel" aria-label="Choose the date and time">
         <form id="dateForm" class="dateForm">
           <label for="dateInput">Travel to a date <span>UTC</span></label>
           <div class="dateFields">
@@ -53,6 +55,15 @@
 
       <nav id="planetChoices" class="planetChoices" aria-label="Choose a planet"></nav>
 
+      <section class="scaleBar" aria-label="Explore at a different scale">
+        <button id="solarView" type="button" aria-pressed="true">☀ Solar system</button>
+        <div class="moonDestination"><label for="moonParent">Moons of</label><select id="moonParent"><option>Earth</option><option>Mars</option><option>Jupiter</option><option>Saturn</option><option>Uranus</option><option>Neptune</option></select><button id="moonView" type="button">Explore moons ↗</button></div>
+        <button id="satelliteView" type="button">Earth satellites ↗</button>
+        <button id="starsView" type="button">Other planetary systems ↗</button>
+      </section>
+      <p id="sceneNote" class="sceneNote" aria-live="polite"></p>
+      <nav id="contextChoices" class="contextChoices" aria-label="Objects in this view"></nav>
+
       <div class="explorerGrid">
         <section class="mapPanel" aria-labelledby="mapTitle">
           <div class="mapHeading">
@@ -60,10 +71,11 @@
               <p class="eyebrow">The view from above</p>
               <h2 id="mapTitle">Our planetary neighborhood</h2>
             </div>
-            <div class="viewChoices" role="group" aria-label="Map view">
+            <div id="viewChoices" class="viewChoices" role="group" aria-label="Map view">
               <button id="innerView" type="button" aria-pressed="false">Inner planets</button>
               <button id="jupiterView" type="button" aria-pressed="true">Out to Jupiter</button>
               <button id="allView" type="button" aria-pressed="false">All planets</button>
+              <button id="outerView" type="button" aria-pressed="false">Farther out</button>
             </div>
           </div>
           <div id="mapViewport" class="mapViewport">
@@ -73,12 +85,12 @@
                 <filter id="sunGlow" x="-150%" y="-150%" width="400%" height="400%"><feGaussianBlur stdDeviation="8" /></filter>
               </defs>
               <g id="orbitLayer"></g>
-              <g id="linkLayer"></g>
               <g id="bodyLayer"></g>
               <g id="labelLayer"></g>
               <g id="scaleLayer"></g>
             </svg>
-            <div class="mapCompass" aria-hidden="true"><span>⊙</span> View from ecliptic north</div>
+            <div id="mapCompass" class="mapCompass" aria-hidden="true"><span>⊙</span> View from ecliptic north</div>
+            <div id="mapTip" class="mapTip" hidden></div>
             <div class="mapControls" role="group" aria-label="Pan and zoom controls">
               <button id="zoomIn" type="button" aria-label="Zoom in" title="Zoom in">+</button>
               <button id="zoomOut" type="button" aria-label="Zoom out" title="Zoom out">−</button>
@@ -89,22 +101,23 @@
             <p id="viewStatus" aria-live="polite">Out to Jupiter</p>
             <p>Drag to explore <span aria-hidden="true">·</span> Pinch or Ctrl/⌘ + scroll to zoom</p>
           </div>
-          <p class="mapKey"><span class="orbitKey" aria-hidden="true"></span> One orbit per planet <span class="linkKey" aria-hidden="true"></span> Earth to Jupiter <span class="notToScale">Distances to scale. Markers enlarged.</span></p>
+          <div class="mapKey"><label id="asteroidControl"><input id="asteroidToggle" type="checkbox" checked /> Show selected asteroids</label><span id="mapScaleNote" class="notToScale">Distances to scale. Markers enlarged.</span></div>
         </section>
 
         <aside class="planetPanel" aria-labelledby="selectedName">
           <div class="selectedHeading">
             <div id="planetGlyph" class="planetGlyph" aria-hidden="true"></div>
-            <div><p class="eyebrow">Selected planet</p><h2 id="selectedName">Earth</h2></div>
+            <div><p id="selectedKind" class="eyebrow">Selected planet</p><h2 id="selectedName">Earth</h2></div>
           </div>
           <p id="planetDescription" class="planetDescription">Our home in the solar system.</p>
           <dl class="planetStats">
-            <div><dt>Sun distance</dt><dd id="sunDistance">Calculating…</dd></div>
-            <div><dt>Earth distance</dt><dd id="earthDistance">Calculating…</dd></div>
-            <div><dt>Longitude around the Sun</dt><dd id="longitude">Calculating…</dd></div>
-            <div><dt>Above the orbital plane</dt><dd id="latitude">Calculating…</dd></div>
+            <div><dt id="distanceLabel">Sun distance</dt><dd id="sunDistance">Calculating…</dd></div>
+            <div><dt id="distance2Label">Earth distance</dt><dd id="earthDistance">Calculating…</dd></div>
+            <div><dt id="angleLabel">Longitude around the Sun</dt><dd id="longitude">Calculating…</dd></div>
+            <div><dt id="heightLabel">Above the orbital plane</dt><dd id="latitude">Calculating…</dd></div>
           </dl>
-          <p class="coordinateNote">Longitude is measured in the fixed J2000 ecliptic plane. A negative latitude means below that plane.</p>
+          <p id="coordinateNote" class="coordinateNote">Longitude is measured in the fixed J2000 ecliptic plane. A negative latitude means below that plane.</p>
+          <button id="exploreSelected" type="button" class="exploreSelected">Explore this planet’s moons ↗</button>
 
           <section class="comparisonPanel" aria-labelledby="comparisonTitle">
             <p class="eyebrow">Two worlds, one moment</p>
@@ -120,11 +133,22 @@
         </aside>
       </div>
 
+      <section id="issPanel" class="issPanel" aria-labelledby="issTitle" hidden>
+        <div><p class="eyebrow">A human outpost</p><h2 id="issTitle">The International Space Station</h2><p>The green marker is a timestamped ISS position, refreshed about every 15 seconds while this Earth view is open. Zoom to low Earth orbit to separate it from Earth’s marker. Earth’s Moon is much farther away.</p></div>
+        <div class="issReadout"><p id="issStatus" role="status">Waiting for the satellite feed.</p><dl><div><dt>Altitude</dt><dd id="issAltitude">Unavailable</dd></div><div><dt>Speed</dt><dd id="issSpeed">Unavailable</dd></div><div><dt>Position time (UTC)</dt><dd id="issTime">Unavailable</dd></div></dl><div class="issButtons"><button id="lowOrbitView" type="button">Zoom to low Earth orbit</button><button id="refreshISS" type="button">Refresh ISS</button></div><p class="smallNote">Feed: Where the ISS at? This first satellite layer tracks the ISS only. A past or future date pauses the feed; missing or old data is never shown as live.</p></div>
+      </section>
+
+      <section class="tideSection" aria-labelledby="tideTitle">
+        <div class="tideCopy"><p class="eyebrow">The Moon at work</p><h2 id="tideTitle">Why does the ocean rise and fall?</h2><p>The Moon pulls a little more strongly on Earth’s near side than on its center, and a little less strongly on the far side. That difference stretches the oceans into a broad pattern with two high-tide regions.</p><p>The Sun adds a smaller tidal effect. Around new and full moon, the effects reinforce each other, producing a larger tidal range called a <strong>spring tide</strong>. Around the quarter moons, they partly offset, giving a smaller <strong>neap tide</strong>. “Spring” here has nothing to do with the season.</p><p>Earth rotates through this changing pattern, but coastlines, ocean depth and weather reshape it. This explains the forces; it cannot tell you the tide time at your beach.</p><p class="smallNote">Tidal forces also flex moons. Inside Io and Enceladus, that repeated flexing helps generate heat.</p></div>
+        <div class="tideExperiment"><svg id="tideMap" viewBox="-210 -160 420 320" role="img" aria-label="Illustrated Sun, Earth and Moon tidal forces"><defs><radialGradient id="tideEarth"><stop stop-color="#84bdce"/><stop offset="1" stop-color="#285478"/></radialGradient></defs><text x="160" y="-115" class="tideSunText">SUN →</text><path d="M140 -45H195M145 0H195M140 45H195" class="sunRays"/><path id="tideWater" fill="#5bb0d73a" stroke="#83cde9" stroke-width="1.5"/><circle r="58" fill="url(#tideEarth)"/><path d="M-24 -36L-8 -30 1 -12 -12 3 -5 22 -18 40 -32 16 -21 -6 -37 -18ZM21 -38L42 -11 27 1 35 16 14 24 7 8 17 -5 7 -24Z" fill="#659c83" opacity=".7"/><text x="0" y="5" text-anchor="middle" class="tideEarthText">EARTH</text><circle r="126" class="tideMoonOrbit"/><g id="tideMoon"><circle r="11" fill="#d2d0c2"/><text x="17" y="5" class="tideMoonText">Moon</text></g></svg><div class="tideControl"><label for="tidePhase">Move the Moon <strong id="tidePhaseName">New moon</strong></label><input id="tidePhase" type="range" min="0" max="360" step="1" value="0"/><div class="tidePresets"><button type="button" data-phase="0">New</button><button type="button" data-phase="90">First quarter</button><button type="button" data-phase="180">Full</button><button type="button" data-phase="270">Last quarter</button></div><p id="tideExplanation" aria-live="polite"></p><button id="currentTidePhase" type="button">Use the selected date’s Moon phase</button><p class="smallNote">An exaggerated, idealized diagram. Sizes, separations and ocean bulges are not to scale. Real tidal bulges do not align perfectly with the Moon.</p></div></div>
+      </section>
+
       <section class="underMap">
         <div class="readMap">
           <p class="eyebrow">Reading the map</p>
           <h2>Space is mostly space.</h2>
-          <p>The planets follow their calculated positions for the selected instant. Orbit lines trace a full revolution; they are not circular animations. Choose any planet above to bring it into view.</p>
+          <p>The planets follow their calculated positions for the selected instant. Zoom out beyond the outer solar system to reach a chart of selected stars, then open one to explore its planets. Use “Moons of” or the selected planet’s moon button for a close-up.</p>
+          <p>The Moon and Jupiter’s four Galilean moons use calculated positions. Other moon atlases and exoplanet systems show orbital sizes with illustrative placements, clearly labeled in each view. There is no single useful scale for both planetary orbits and the vast distances between stars, so the chart changes units at that boundary.</p>
           <p>One astronomical unit (AU) is 149,597,870.7 kilometers, about the average Earth to Sun distance. Even at this scale, the planets would be too small to see, so their markers are enlarged. Use a normal mouse wheel or trackpad gesture to scroll the page. To zoom the map, use its + and − buttons, hold Ctrl or Command while scrolling, or pinch on a touchscreen. Keyboard users can focus the map and use the arrow keys to pan, + and − to zoom, and Home to reset.</p>
         </div>
         <details class="positionsDetails">
@@ -143,7 +167,8 @@
         <summary>How the positions are calculated</summary>
         <div class="accuracyCopy">
           <p>This educational map uses <a href="https://github.com/cosinekitty/astronomy/tree/v2.1.19" target="_blank" rel="noopener">Astronomy Engine 2.1.19</a>, with VSOP87-based planetary calculations designed for about one arcminute of accuracy. It is a calculated view of the solar system, not a live telescope image.</p>
-          <p>The view looks down from the north side of the fixed J2000 ecliptic plane. Planets are shown at the same instant, without correcting for the time their light takes to reach Earth. Their height above or below the plane is flattened in the map and included in the details. The Earth to Jupiter line shows their geometric separation.</p>
+          <p>Calculated planet, lunar and Galilean-moon views look down from the north side of the fixed J2000 ecliptic plane. They show geometric positions at the same instant, without light-time correction. The view flattens their height above or below the plane. Star coordinates are catalog positions projected onto that plane, so apparent map separations can be smaller than the true distances.</p>
+          <p>Four selected small bodies use a simple Kepler orbit propagated from NASA/JPL orbital elements retrieved on 25 October 2026. These estimates appear only within two years of their element epoch and do not include planetary perturbations. They are educational, not live tracking or impact predictions. Moon-atlas distances and exoplanet orbital sizes come from NASA/JPL and the NASA Exoplanet Archive; their illustrative placements do not show current positions.</p>
           <p>For research, navigation or high-precision ephemerides, use <a href="https://ssd.jpl.nasa.gov/horizons/" target="_blank" rel="noopener">NASA JPL Horizons</a>. This map accepts dates from 1800 through 2050.</p>
         </div>
       </details>

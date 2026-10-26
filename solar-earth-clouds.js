@@ -33,11 +33,11 @@
     return Number.isFinite(timestamp) && timestamp <= now + 10 * MINUTE && timestamp >= now - 30 * DAY;
   }
 
-  function goesSample(html, now) {
-    if (typeof html !== 'string') return null;
+  function goesFrames(html, now) {
+    if (typeof html !== 'string') return [];
     const at = now === undefined ? Date.now() : now;
     const links = /https:\/\/cdn\.star\.nesdis\.noaa\.gov\/GOES19\/ABI\/FD\/GEOCOLOR\/(\d{4})(\d{3})(\d{2})(\d{2})_GOES19-ABI-FD-GEOCOLOR-678x678\.jpg(?=[\s"'<>]|$)/g;
-    let newest = null;
+    const frames = new Map();
     let match;
     while ((match = links.exec(html))) {
       const year = Number(match[1]);
@@ -47,8 +47,8 @@
       const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
       if (day < 1 || day > (leap ? 366 : 365) || hours > 23 || minutes > 59) continue;
       const capturedAt = Date.UTC(year, 0, day, hours, minutes);
-      if (!reasonable(capturedAt, at) || (newest && capturedAt <= newest.capturedAt)) continue;
-      newest = {
+      if (!reasonable(capturedAt, at)) continue;
+      const frame = {
         source: 'goes',
         url: match[0],
         capturedAt: capturedAt,
@@ -56,8 +56,13 @@
         credit: 'CIRA/NOAA',
         description: 'GOES-19 view of the Americas. Daytime colors approximate visible light; nighttime clouds use infrared imagery over a static city-lights background.'
       };
+      frames.set(capturedAt,frame);
     }
-    return newest;
+    return [...frames.values()].sort((a,b)=>a.capturedAt-b.capturedAt);
+  }
+
+  function goesSample(html, now) {
+    const frames=goesFrames(html,now);return frames.length?frames[frames.length-1]:null;
   }
 
   function epicSample(rows, now) {
@@ -131,5 +136,5 @@
     }
     return { refresh: refresh, getLast: function (source) { return last.get(source === undefined ? 'goes' : source) || null; } };
   }
-  return { endpoints: endpoints, cacheTimes: cacheTimes, goesSample: goesSample, epicSample: epicSample, createClient: createClient };
+  return { endpoints: endpoints, cacheTimes: cacheTimes, goesFrames: goesFrames, goesSample: goesSample, epicSample: epicSample, createClient: createClient };
 });

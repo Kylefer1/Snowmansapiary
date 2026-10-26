@@ -7,7 +7,7 @@
   <meta name="description" content="Explore thousands of planets and star systems, moons, asteroids, galaxies and the cosmic distance scale, with spacecraft imagery and the latest space-weather readings." />
   <title>The solar system, right now | Snowman’s Apiary</title>
   <link rel="stylesheet" href="site.css" />
-  <link rel="stylesheet" href="solar-system.css?v=4" />
+  <link rel="stylesheet" href="solar-system.css?v=6" />
   <script src="vendor/astronomy-2.1.19.min.js" defer></script>
   <script src="solar-ephemeris.js?v=3" defer></script>
   <script src="solar-catalog-data.js?v=3" defer></script>
@@ -15,8 +15,9 @@
   <script src="solar-planet-facts.js?v=4" defer></script>
   <script src="solar-catalog.js?v=4" defer></script>
   <script src="solar-weather.js?v=4" defer></script>
-  <script src="solar-earth-clouds.js?v=4" defer></script>
-  <script src="solar-system.js?v=5" defer></script>
+  <script src="solar-earth-clouds.js?v=6" defer></script>
+  <script src="solar-earth-replay.js?v=6" defer></script>
+  <script src="solar-system.js?v=6" defer></script>
 </head>
 <body class="infoPage solarPage">
   <a class="skipLink" href="#main">Skip to the solar system</a>
@@ -112,6 +113,13 @@
             <p>Drag to explore <span aria-hidden="true">·</span> Pinch to travel · Double-tap to explore</p>
           </div>
           <div class="mapKey"><label id="asteroidControl"><input id="asteroidToggle" type="checkbox" checked /> Show selected asteroids</label><span id="mapScaleNote" class="notToScale">Distances to scale. Markers enlarged.</span></div>
+
+          <div id="earthMapReplay" class="earthMapReplay" hidden aria-label="Earth cloud replay controls">
+            <div class="replayHeading"><strong id="mapReplayMode">Replay observed clouds</strong><time id="mapReplayTime">Waiting for satellite images</time></div>
+            <div class="replayButtons"><button id="mapReplayPrevious" type="button" aria-label="Previous satellite frame" disabled>←</button><button id="mapReplayPlay" type="button">Play last 24 hours</button><button id="mapReplayNext" type="button" aria-label="Next satellite frame" disabled>→</button><button id="mapReplayLatest" type="button" disabled>Latest image</button><label>Speed <select id="mapReplaySpeed" aria-label="Earth map replay speed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label></div>
+            <label class="replayTimelineLabel" for="mapReplayTimeline">Cloud timeline</label><input id="mapReplayTimeline" type="range" min="0" max="0" value="0" disabled aria-label="Earth map cloud timeline"/>
+            <p>Replay changes the cloud image only. Orbit and ISS positions keep the map’s selected time. <a href="#earthReplay">Open the larger Earth viewer ↓</a></p>
+          </div>
         </section>
 
         <aside class="planetPanel" aria-labelledby="selectedName">
@@ -150,7 +158,7 @@
 
       <section id="earthCloudPanel" class="earthCloudPanel" aria-labelledby="earthCloudTitle" hidden>
         <div><p class="eyebrow">Observed clouds</p><h2 id="earthCloudTitle">Earth from a satellite</h2><p>These clouds come from satellite observations. NOAA's GeoColor view faces the Americas and updates about every ten minutes. Daytime uses visible imagery; at night, infrared observations show clouds over a background that includes city lights. NASA EPIC shows the sunlit hemisphere, with a longer publication delay.</p><p class="smallNote">The photograph keeps its satellite viewing angle. It is not aligned to the map's orbital plane, and it does not show the whole globe at once. A selected past or future orbital date uses the historical illustration instead.</p></div>
-        <div class="earthCloudSettings"><label><input id="earthCloudToggle" type="checkbox" checked/> Use the latest published satellite clouds</label><label for="earthCloudSource">Satellite view</label><select id="earthCloudSource"><option value="goes">NOAA GOES-19 · Americas · frequent updates</option><option value="epic">NASA EPIC · sunlit Earth · delayed images</option></select><p id="earthCloudStatus" role="status">Open an Earth close-up to load the latest image.</p><button id="earthCloudRefresh" type="button">Refresh Earth image</button><p class="smallNote">Imagery: CIRA/NOAA and NASA EPIC Team. Original capture time is shown after the image loads. This feed is separate from the calculated orbital clock.</p></div>
+        <div class="earthCloudSettings"><label><input id="earthCloudToggle" type="checkbox" checked/> Use the latest published satellite clouds</label><label for="earthCloudSource">Satellite view</label><select id="earthCloudSource"><option value="goes">NOAA GOES-19 · Americas · frequent updates</option><option value="epic">NASA EPIC · sunlit Earth · delayed images</option></select><p id="earthCloudStatus" role="status">Open an Earth close-up to load the latest image.</p><button id="earthCloudRefresh" type="button">Refresh Earth image</button><a class="replayJump" href="#earthReplay">Watch the past 24 hours ↓</a><p class="smallNote">Imagery: CIRA/NOAA and NASA EPIC Team. Original capture time is shown after the image loads. This feed is separate from the calculated orbital clock.</p></div>
       </section>
 
       <section id="weatherPanel" class="weatherPanel" aria-labelledby="weatherTitle">
@@ -218,6 +226,16 @@
             </table>
           </div>
         </details>
+      </section>
+
+
+      <section id="earthReplay" class="earthReplay" aria-labelledby="replayTitle">
+        <div class="replayIntro"><div><p class="eyebrow">A day on Earth</p><h2 id="replayTitle">Earth in motion.</h2><p>Follow observed clouds and the changing day and night across Earth’s Americas-facing hemisphere. This viewer plays NOAA’s available images from the past 24 hours, independently of the orbital map’s date.</p></div><span id="replayMode" class="replayBadge">READY TO LOAD</span></div>
+        <div class="replayLayout"><div class="replayScreen"><img id="replayImage" src="space-imagery/earth.webp" width="678" height="678" alt="Earth from space" loading="lazy" decoding="async"/><div class="replayImageCaption"><span id="replayCredit">NASA VIIRS · preview</span><time id="replayTime">Waiting for satellite images</time></div></div>
+          <div class="replayConsole"><p id="replayRange" class="replayRange">The satellite sequence loads when this viewer comes into view.</p><div class="replayButtons"><button id="replayPrevious" type="button" aria-label="Previous Earth replay frame" disabled>←</button><button id="replayPlay" type="button">Play last 24 hours</button><button id="replayNext" type="button" aria-label="Next Earth replay frame" disabled>→</button><button id="replayLatest" type="button" disabled>Latest image</button></div>
+          <label class="replayTimelineLabel" for="replayTimeline">Travel through the past day</label><input id="replayTimeline" type="range" min="0" max="0" value="0" disabled aria-label="Earth replay timeline"/>
+          <div class="replayOptions"><label for="replaySpeed">Playback speed <select id="replaySpeed"><option value="0.5">0.5×</option><option value="1" selected>1×</option><option value="2">2×</option></select></label><label class="replayDetail"><input id="replayDetail" type="checkbox"/> Show every available frame <span>Uses more data. The default shows about one frame every 20 minutes.</span></label></div>
+          <p id="replayStatus" class="replayStatus">Ready when you are.</p><button id="replayRefresh" type="button">Refresh replay</button><div class="replayScience"><h3>What am I seeing?</h3><p>Daytime colors approximate visible light. At night, infrared observations reveal clouds over a background that includes static city lights. These are real satellite frames, with no generated cloud motion or artificial frames between observations.</p><p>Images are usually produced every ten minutes. Gaps or publication delays can shorten the available sequence. The timestamp always identifies the image on screen. Playback waits for images to load and rests while this viewer and the zoomed Earth map are off screen.</p><p class="smallNote">Imagery credit: CIRA/NOAA. The sequence shows the GOES-19 hemisphere, rather than all of Earth at once.</p></div></div></div>
       </section>
 
       <details class="accuracyDetails">

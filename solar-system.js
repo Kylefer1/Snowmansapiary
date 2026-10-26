@@ -8,6 +8,7 @@ const ns='http://www.w3.org/2000/svg',presets={inner:1.9,jupiter:6.3,all:33,oute
 const state={date:new Date(),live:true,selected:'Jupiter',scene:'solar',parent:'Earth',system:'TRAPPIST-1',cx:0,cy:0,extent:6.3,preset:'jupiter',data:null,bodies:[],width:800,height:600,iss:null,issPending:false};
 const facts=window.SolarPlanetFacts?window.SolarPlanetFacts.planets:{},points=new Map(),markers=new Map(),labels=new Map(),choices=new Map(),orbits=new Map(),contextChoices=new Map();let renderQueued=false,drag=null,sceneData=null,requestId=0,lastTap=null,cameraToken=0,lastOrbitMinute=null,cloudRequest=0,cloudPending=false;
 const cloudClient=window.SolarEarthClouds?window.SolarEarthClouds.createClient():null;state.earthCloud=null;
+state.earthReplay=null;const replayUI=window.SolarEarthReplay?window.SolarEarthReplay.mount(document,window):null;if(replayUI)replayUI.subscribe(frame=>{state.earthReplay=frame;details();queueRender();});
 function node(tag,attrs={},text){const el=document.createElementNS(ns,tag);for(const [key,value]of Object.entries(attrs))el.setAttribute(key,String(value));if(text!==undefined)el.textContent=text;return el;}
 function set(el,attrs){for(const [key,value]of Object.entries(attrs))el.setAttribute(key,String(value));}
 function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
@@ -57,13 +58,14 @@ function focusHome(){lastTap=null;if(state.scene==='stars'||state.scene==='cosmo
 function stat(labelId,valueId,label,value){$('#'+labelId).textContent=label;$('#'+valueId).textContent=value;}
 function km(value){return Math.round(value).toLocaleString('en-US')+' km';}
 function period(days){return days<1?(days*24).toFixed(2)+' hours':days.toFixed(2)+' days';}
-function activeCloud(){return state.scene==='moons'&&state.parent==='Earth'&&state.live&&$('#earthCloudToggle').checked?state.earthCloud:null;}
+function replayEligible(){return state.scene==='moons'&&state.parent==='Earth'&&state.live&&state.extent<=60000&&$('#earthCloudToggle').checked&&$('#earthCloudSource').value==='goes';}
+function activeCloud(){if(!(state.scene==='moons'&&state.parent==='Earth'&&state.live&&$('#earthCloudToggle').checked))return null;return state.earthReplay&&replayEligible()?state.earthReplay:state.earthCloud;}
 function details(){
   const p=currentBody();if(!p)return;const physical=facts[p.id],enhanced=$('#enhancedGraphics').checked,cloud=p.id==='Earth'&&activeCloud();
   $('#selectedName').textContent=p.id;$('#selectedKind').textContent=p.kind||'Planet';$('#planetDescription').textContent=p.description;
   const glyph=$('#planetGlyph');glyph.replaceChildren();glyph.style.background=`radial-gradient(circle at 30% 25%,#f3f6e5,${p.color} 25%,${p.color} 42%,#111a29 95%)`;glyph.setAttribute('data-planet',p.id);
   if((enhanced||cloud)&&physical&&physical.image){const img=document.createElement('img');img.src=cloud?cloud.url:physical.image;img.alt=cloud?'Earth cloud observations from '+cloud.credit:p.id+' spacecraft image';if(cloud){img.style.clipPath='circle('+(cloud.source==='epic'?'38.5':'48')+'% at 50% 50%)';img.style.transform='scale('+(cloud.source==='epic'?1.3:1.04)+')';}glyph.append(img);glyph.style.background='transparent';}
-  const caption=$('#imageryCaption');caption.hidden=!((enhanced||cloud)&&physical);caption.textContent=cloud?'Observed clouds · '+cloud.credit+' · Captured '+cloud.time.replace('T',' ').replace('.000Z',' UTC')+'. '+cloud.description:physical?physical.imageCaption+' Animated glows are decorative.':'';
+  const caption=$('#imageryCaption');caption.hidden=!((enhanced||cloud)&&physical);caption.textContent=cloud?(cloud.replay?'24-hour replay · ':'Observed clouds · ')+cloud.credit+' · Captured '+cloud.time.replace('T',' ').replace('.000Z',' UTC')+'. '+cloud.description:physical?physical.imageCaption+' Animated glows are decorative.':'';
   const extras=$('#objectExtras');extras.replaceChildren();function extra(label,value){if(value===null||value===undefined||value==='')return;const dt=document.createElement('dt'),dd=document.createElement('dd');dt.textContent=label;dd.textContent=value;extras.append(dt,dd);}
   if(physical){extra('Mean radius',km(physical.meanRadiusKm));extra('One rotation',physical.rotationLabel);extra('Year length',period(physical.orbitalPeriodDays));extra('Mass',physical.massEarths.toLocaleString('en-US',{maximumFractionDigits:3})+' Earths');extra('A closer look',physical.appearance);extra('Worth knowing',physical.extraFact);}
   const action=$('#exploreSelected');action.hidden=true;$('.comparisonPanel').hidden=state.scene!=='solar';
@@ -180,7 +182,7 @@ function ensureBody(p){
   marker.addEventListener('focus',()=>{if(state.bodies.some(b=>b.id===p.id))select(p.id);});return marker;
 }
 function render(){
-  if(!state.data)return;const u=unit(),{width:w,height:h}=state,active=new Set(state.bodies.map(p=>p.id)),dense=state.scene==='stars',enhanced=$('#enhancedGraphics').checked;
+  if(!state.data)return;if(replayUI)replayUI.setMapContext(replayEligible());const u=unit(),{width:w,height:h}=state,active=new Set(state.bodies.map(p=>p.id)),dense=state.scene==='stars',enhanced=$('#enhancedGraphics').checked;
   layers.orbit.setAttribute('transform',`translate(${w/2},${h/2}) scale(${u},${-u}) translate(${-state.cx},${-state.cy})`);
   for(const [id,m]of markers){m.style.display='none';labels.get(id).text.style.display='none';labels.get(id).line.style.display='none';}
   for(const [id,p]of orbits){p.style.display=active.has(id)&&!(state.scene==='moons'&&id===state.parent)&&state.scene!=='stars'&&state.scene!=='cosmos'?'':'none';p.style.stroke=id===state.selected?'#cbb986':'#60748e';p.style.opacity=id===state.selected?'.5':'.22';}

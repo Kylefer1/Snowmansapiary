@@ -16,7 +16,7 @@
   <script src="solar-catalog.js?v=4" defer></script>
   <script src="solar-weather.js?v=4" defer></script>
   <script src="solar-earth-clouds.js?v=4" defer></script>
-  <script src="solar-system.js?v=4" defer></script>
+  <script src="solar-system.js?v=5" defer></script>
 </head>
 <body class="infoPage solarPage">
   <a class="skipLink" href="#main">Skip to the solar system</a>
@@ -68,7 +68,7 @@
       <section class="catalogToolbar" aria-label="Find objects and choose a cosmic scale">
         <div class="catalogFind"><label for="catalogSearch">Find a planet, star system or deep-sky object</label><input id="catalogSearch" type="search" placeholder="Try Kepler-90, Orion, Andromeda…" autocomplete="off" aria-controls="searchResults"/><p id="catalogCount" class="smallNote"></p><div id="searchResults" class="searchResults" aria-live="polite"></div></div>
         <div class="scaleDestination"><label for="scaleSelect">Travel farther</label><select id="scaleSelect"><option value="solar">Sun and planets</option><option value="oort">Oort Cloud scale</option><option value="nearby">Nearby planetary systems</option><option value="milkyway">Across the Milky Way</option><option value="galaxies">Local Group and galaxies</option><option value="clusters">Galaxy clusters</option><option value="universe">Observable-universe scale</option></select><button id="scaleGo" type="button">Go to this scale ↗</button></div>
-        <div class="graphicsSetting"><label><input id="enhancedGraphics" type="checkbox"/> Enhanced graphics</label><span>Spacecraft imagery, atmosphere glow and gentle visual effects. Images show appearance, not live weather or current surface orientation.</span><button id="weatherView" type="button">☀ Latest space weather ↗</button></div>
+        <div class="graphicsSetting"><label><input id="enhancedGraphics" type="checkbox" checked/> Enhanced graphics</label><span>Spacecraft imagery, atmosphere glow and gentle visual effects. Images show appearance, not live weather or current surface orientation.</span><button id="weatherView" type="button">☀ Latest space weather ↗</button></div>
       </section>
       <p id="sceneNote" class="sceneNote" aria-live="polite"></p>
       <nav id="contextChoices" class="contextChoices" aria-label="Objects in this view"></nav>

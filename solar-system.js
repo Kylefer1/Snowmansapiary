@@ -220,8 +220,13 @@ function searchCatalog(){const results=$('#searchResults');results.replaceChildr
 $('#catalogSearch').addEventListener('input',searchCatalog);$('#catalogSearch').addEventListener('keydown',e=>{if(e.key==='Escape')$('#searchResults').replaceChildren();if(e.key==='Enter'){const first=C.catalogSearch($('#catalogSearch').value,1)[0];if(first){e.preventDefault();travel(first);}}});
 function goToScale(){const value=$('#scaleSelect').value;if(value==='solar'){setScene('solar');setPreset('all');return;}const extents={oort:2.2,nearby:47,milkyway:30000,galaxies:4000000,clusters:400000000,universe:49000000000};setScene(['oort','nearby','milkyway'].includes(value)?'stars':'cosmos');state.extent=extents[value];state.cx=state.cy=0;custom();queueRender();}
 $('#scaleGo').addEventListener('click',goToScale);$('#weatherView').addEventListener('click',()=>{$('#weatherPanel').scrollIntoView({behavior:window.matchMedia&&window.matchMedia('(prefers-reduced-motion: reduce)').matches?'instant':'smooth',block:'start'});$('#weatherRefresh').click();});
-function graphics(){document.querySelector('.solarPage').classList.toggle('highGraphics',$('#enhancedGraphics').checked);try{localStorage.setItem('solar-enhanced-graphics',String($('#enhancedGraphics').checked));}catch{}details();queueRender();}
-try{$('#enhancedGraphics').checked=localStorage.getItem('solar-enhanced-graphics')==='true';}catch{}$('#enhancedGraphics').addEventListener('change',graphics);
+function graphics(){document.querySelector('.solarPage').classList.toggle('highGraphics',$('#enhancedGraphics').checked);details();queueRender();}
+// The earlier key was written on startup, so its false value could mean the old
+// default rather than a visitor's choice. Save only deliberate changes now.
+const graphicsChoiceKey='solar-enhanced-graphics-choice';
+$('#enhancedGraphics').checked=true;
+try{const savedGraphics=localStorage.getItem(graphicsChoiceKey);if(savedGraphics==='true'||savedGraphics==='false')$('#enhancedGraphics').checked=savedGraphics==='true';}catch{}
+$('#enhancedGraphics').addEventListener('change',()=>{try{localStorage.setItem(graphicsChoiceKey,String($('#enhancedGraphics').checked));}catch{}graphics();});
 // A normal wheel scrolls the page, including when the pointer is over the map.
 svg.addEventListener('wheel',event=>{if(!event.ctrlKey&&!event.metaKey)return;event.preventDefault();zoom(Math.exp(-clamp(event.deltaY,-100,100)*.003),local(event));},{passive:false});
 function targetAt(event,p){const element=event.target.closest('[data-planet]'),home=event.target.closest('[data-home]');if(element)return{id:element.getAttribute('data-planet'),home:false};if(home)return{id:null,home:true};const body=nearestBody(p,event.pointerType==='touch'?24:12);return{id:body&&body.id,home:false};}

@@ -4,7 +4,7 @@
   else root.MeadowEngine=factory();
 })(typeof globalThis!=='undefined'?globalThis:this,function(){
 'use strict';
-const WORLD=2600,TAU=Math.PI*2,MAX_ENEMIES=210,MAX_FLOOD=650,MAX_SHOTS=360,MAX_DROPS=320,MAX_ZONES=65,MAX_SWARM=80;
+const WORLD=2600,TAU=Math.PI*2,MAX_ENEMIES=210,MAX_FLOOD=650,MAX_SHOTS=360,MAX_DROPS=320,MAX_ZONES=65,MAX_SWARM=80,WEAPON_LIMIT=5;
 const WEAPONS={
   guard:{name:'Guard Bees',description:'Launch loyal bees at the nearest threat. Each rank strengthens the volley.',color:'#f6cd69'},
   jelly:{name:'Royal Jelly',description:'Restore health over time and increase your maximum health.',color:'#eab1c9'},
@@ -45,7 +45,9 @@ const ENEMIES={
 const STAGES={
   1:{id:1,name:"Meadow's Edge",waves:30,duration:900,description:'Survive thirty waves and defeat the final Crown Hornet.',color:'#7b925d'},
   2:{id:2,name:'Thistle Dusk',waves:35,duration:1050,description:'Thirty-five waves of aggressive dusk swarms.',color:'#79657e'},
-  3:{id:3,name:'Crownfall Arena',waves:20,duration:600,description:'Extreme challenge: twenty waves of relentless bosses and reinforcements. Double base beeswax, 3 per arena boss, and 100 for clearing the stage.',color:'#9d759e',bossArena:true}
+  3:{id:3,name:'Crownfall Arena',waves:20,duration:600,description:'Extreme challenge: twenty waves of relentless bosses and reinforcements. Double base beeswax, 3 per arena boss, and 100 for clearing the stage.',color:'#9d759e',bossArena:true},
+  4:{id:4,name:'Ashfall March',waves:40,duration:1200,description:'Nightmare swarms. Forty waves, massed beetles and carriers, and packs of hornet bosses. Built for permanent upgrades. Double beeswax and a 180-beeswax clear bonus.',color:'#a39164',horde:true,enemyCap:360,packSize:4,spawnFactor:1.5,healthFactor:2.2,speedFactor:1.1,damageFactor:1.2,unlockOffset:6,surgeEvery:90},
+  5:{id:5,name:'The Last Apiary',waves:45,duration:1350,description:'The final endurance test. Forty-five waves of overwhelming swarms, frequent surges and multiple bosses. Bring your permanent upgrades. Triple beeswax and a 300-beeswax clear bonus.',color:'#c57b75',horde:true,enemyCap:480,packSize:6,spawnFactor:1.8,healthFactor:3,speedFactor:1.18,damageFactor:1.45,unlockOffset:10,surgeEvery:65}
 };
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const dist2=(a,b)=>(a.x-b.x)**2+(a.y-b.y)**2;
@@ -57,7 +59,7 @@ class Game{
     this.character=CHARACTERS[character]?character:'queen';this.autoRecovery=!!autoRecovery;this.state='ready';this.queen={x:1300,y:1300,px:1300,py:1300,hp:120,max:120,inv:0,vx:0,vy:0,angle:-Math.PI/2,throwTime:0};
     this.time=0;this.wave=1;this.level=1;this.xp=0;this.need=8;this.kills=0;this.arenaBossKills=0;this._arenaSupportClock=4;
     this.weapons=Object.fromEntries(Object.keys(WEAPONS).map(id=>[id,0]));this.weapons[CHARACTERS[this.character].weapon]=CHARACTERS[this.character].rank;this.fused={royal:false,bloom:false,shield:false,storm:false};
-    this.ultimates={tempest:false,cataclysm:false};this._arenaBossCounts=new Map();
+    this.ultimates={tempest:false,cataclysm:false};this._arenaBossCounts=new Map();this._hordeBossCounts=new Map();this.challengeBossKills=0;this.surgeTime=0;this.surgeWarning=0;this._surgeNext=this.stageInfo.surgeEvery||Infinity;
     if(this.stage===3){for(const fusion of Object.values(FUSIONS))for(const id of fusion.pair)this.weapons[id]=5;for(const id of Object.keys(this.fused))this.fused[id]=true;this.weapons.disc=3;this.weapons.pickup=3;this.queen.hp=this.queen.max=220;}
     this.enemies=[];this.hives=[];this.shots=[];this.drops=[];this.zones=[];this.events=[];this.options=[];this.pendingReward=null;
     this.superWeaponTime=0;this.swarmBees=[];this._superTimer=0;this._swarmOrigin={x:1300,y:1300};this._hiveClock=45;this._hiveTravel=0;
@@ -65,7 +67,7 @@ class Game{
     this.permanent=permanent;this.specialCharge=0;this.specialCooldown=0;this.specialTime=0;this.specialHealing=0;this._spearTimer=0;this._resilienceCooldown=0;this._royalTimer=0;
     const hpBonus=Math.max(0,Math.min(5,Number(permanent.health)||0))*20;this.queen.max+=hpBonus;this.queen.hp+=hpBonus;
     if(this.character==='queen')this.weapons.guard=Math.max(this.weapons.guard,Math.min(5,2+(Number(permanent.guard)||0)));
-    this._arenaHealthLimit=this.queen.max+60;
+    this._arenaHealthLimit=this.queen.max+(this.stage===5?40:60);
     this.dashCooldown=0;this.input={x:0,y:0,aimX:0,aimY:0};this.endless=false;this.campaignComplete=false;this._nextId=1;this._spawn=.3;this._pity=0;this._bossWaves=new Set();this._timers={guard:0,pollen:1.2,propolis:1,wing:this.character==='snowman'?0:1,lance:.2,disc:.8,bolt:.5,tempest:0,cataclysm:.5,nova:1};this._resumeState='playing';this._dashTime=0;this._dashX=0;this._dashY=-1;
   }
   _random(){return clamp(finite(this.random(),.5),0,.999999999);}
@@ -111,7 +113,7 @@ class Game{
     if(this.stage===3)this._arenaSupport(dt);
     if(spawning&&(this.stage!==3||this.endless)){
       this._spawn-=dt;
-      if(this._spawn<=0){const tier=this.endlessTier(),packs=1+Math.min(7,Math.floor(tier/4));for(let i=0;i<packs;i++)this._spawnWavePack();this._spawn=this.spawnInterval();}
+      if(this._spawn<=0){const tier=this.endlessTier(),packs=this.stageInfo.horde?Math.min(10,this.stageInfo.packSize+Math.floor(this.wave/10))+Math.min(5,Math.floor(tier/8)):1+Math.min(7,Math.floor(tier/4));for(let i=0;i<packs;i++)this._spawnWavePack();this._spawn=this.spawnInterval();}
     }
     this._special(dt);
     this._weapons(dt);
@@ -130,9 +132,17 @@ class Game{
   }
   endlessTier(){return this.endless?Math.max(0,this.wave-this.stageInfo.waves):0;}
   endlessDamage(){return 1+this.endlessTier()*.0025;}
-  spawnInterval(){return Math.max(.055,Math.max(.16,.87-this.wave*.025)/(this.stage===2?1.2:1)/(1+this.endlessTier()*.045)/(this.pressureTime>0?2.2:1));}
+  spawnInterval(){return Math.max(.055,Math.max(.16,.87-this.wave*.025)/(this.stageInfo.spawnFactor||(this.stage===2?1.2:1))/(1+this.endlessTier()*.045)/(this.pressureTime>0?2.2:1)/(this.surgeTime>0?1.55:1));}
+  enemyLimit(){return this.stageInfo.enemyCap||MAX_ENEMIES;}
+  challengeDamage(){return (this.stageInfo.damageFactor||1)*this.endlessDamage();}
+  limitedRecovery(){return this.stage===3||!!this.stageInfo.horde;}
+  hordeBossCount(wave){return (this.stage===5?3:2)+Math.floor(wave/15);}
   arenaBossCount(wave){return Math.min(10,4+Math.floor((wave-1)/3)+(this.endless?Math.floor(Math.max(0,wave-this.stageInfo.waves)/5):0));}
   _scheduleBosses(){
+    if(this.stageInfo.horde){
+      let living=this.enemies.filter(e=>e.boss&&e.hp>0).length;
+      for(let wave=5;wave<=this.wave&&living<8;wave+=5){let count=this._hordeBossCounts.get(wave)||0;const needed=this.hordeBossCount(wave);while(count<needed&&living<8){const boss=this._spawnEnemy('hornet',{boss:true,final:!this.endless&&wave===this.stageInfo.waves});if(!boss)return;boss.hordeBoss=true;boss.hp*=1.5;boss.max=boss.hp;count++;living++;this._hordeBossCounts.set(wave,count);}if(count===needed)this._bossWaves.add(wave);}return;
+    }
     if(this.stage!==3){for(let wave=5;wave<=this.wave;wave+=5){if(this._bossWaves.has(wave))continue;const boss=this._spawnEnemy('hornet',{boss:true,final:!this.endless&&wave===this.stageInfo.waves});if(boss)this._bossWaves.add(wave);break;}return;}
     let living=this.enemies.filter(e=>e.boss&&e.hp>0).length;
     for(let wave=1;wave<=this.wave&&living<10;wave++){
@@ -146,13 +156,22 @@ class Game{
     const count=Math.min(4,1+Math.floor(this.wave/7),72-living),pool=['wasp','spitter','beetle','varroa'];for(let i=0;i<count;i++)this._spawnEnemy(pool[(this.wave+i+Math.floor(this.time/2.5))%pool.length]);
   }
   _bossScheduleComplete(){
+    if(this.stageInfo.horde){for(let wave=5;wave<=this.stageInfo.waves;wave+=5)if((this._hordeBossCounts.get(wave)||0)<this.hordeBossCount(wave))return false;return true;}
     if(this.stage===3){for(let wave=1;wave<=this.stageInfo.waves;wave++)if((this._arenaBossCounts.get(wave)||0)<this.arenaBossCount(wave))return false;return true;}
     for(let wave=5;wave<=this.stageInfo.waves;wave+=5)if(!this._bossWaves.has(wave))return false;return true;
   }
   fusionConsumed(id){return Object.entries(ULTIMATES).some(([key,def])=>this.ultimates[key]&&def.pair.includes(id));}
   fusionActive(id){return !!this.fused[id]&&!this.fusionConsumed(id);}
+  readyFusions(){return Object.keys(FUSIONS).filter(id=>!this.fused[id]&&FUSIONS[id].pair.every(key=>this.weapons[key]>=5));}
+  weaponLoadout(){
+    const ingredients=new Set(Object.entries(FUSIONS).filter(([id])=>this.fused[id]).flatMap(([,def])=>def.pair));
+    return [...Object.keys(WEAPONS).filter(id=>!WEAPONS[id].utility&&this.weapons[id]>0&&!ingredients.has(id)),...Object.keys(FUSIONS).filter(id=>this.fusionActive(id)),...Object.keys(ULTIMATES).filter(id=>this.ultimates[id])];
+  }
   readyUltimates(){return this.stage===3?Object.keys(ULTIMATES).filter(id=>!this.ultimates[id]&&ULTIMATES[id].pair.every(f=>this.fusionActive(f))):[];}
   _challenge(dt,spawning){
+    this.surgeTime=Math.max(0,this.surgeTime-dt);
+    if(this.surgeWarning>0){this.surgeWarning=Math.max(0,this.surgeWarning-dt);if(!this.surgeWarning&&spawning){this.surgeTime=15;this._event('hordesurge',this.queen.x,this.queen.y,{phase:'active'});}}
+    if(this.stageInfo.horde&&spawning&&this.time>=this._surgeNext){this.surgeWarning=4;this._surgeNext=this.time+this.stageInfo.surgeEvery;this._event('hordesurge',this.queen.x,this.queen.y,{phase:'warning'});}
     this.pressureTime=Math.max(0,this.pressureTime-dt);this._pressureCooldown=Math.max(0,this._pressureCooldown-dt);
     while(this._recentKills.length&&this._recentKills[0]<this.time-12)this._recentKills.shift();
     if(this.outbreakState==='warning'){
@@ -198,22 +217,22 @@ class Game{
     this._event('hive',hive.x,hive.y,{healing:kind==='honeycomb',dropType:kind});this._event('kill',hive.x,hive.y,{enemyType:'wildHive',color:'#d6ad56',radius:25,angle:0});this._drop(kind,hive.x,hive.y,kind==='honeycomb'?35:10,{originX:hive.x,originY:hive.y});
   }
   _spawnWavePack(){
-    if(this.enemies.length>=MAX_ENEMIES)return;
-    const unlock=this.wave+(this.stage===2?4:0),pool=['mite','moth'];
+    if(this.enemies.length>=this.enemyLimit()-(this.stageInfo.horde?8:0))return;
+    const unlock=this.wave+(this.stageInfo.unlockOffset||(this.stage===2?4:0)),pool=['mite','moth'];
     if(unlock>=2)pool.push('gnat','varroa');if(unlock>=3)pool.push('beetle');if(unlock>=4)pool.push('wasp');if(unlock>=6)pool.push('spitter');if(unlock>=8)pool.push('splitter');
     const type=pool[Math.floor(this._random()*pool.length)],first=this._spawnEnemy(type);
     if(type==='gnat'&&first)for(let i=0;i<2;i++)this._spawnEnemy('gnat',{x:clamp(first.x+this._range(-35,35),20,WORLD-20),y:clamp(first.y+this._range(-35,35),20,WORLD-20)});
     if(this.wave>12&&this._random()<.18)this._spawnEnemy('mite');
   }
   _spawnEnemy(type,opts={}){
-    if(this.enemies.length>=(opts.outbreak?MAX_FLOOD:MAX_ENEMIES))return null;
+    if(this.enemies.length>=(opts.outbreak?MAX_FLOOD:this.enemyLimit()-(this.stageInfo.horde&&!opts.boss?8:0)))return null;
     const def=ENEMIES[type];if(!def)return null;
     const a=this._range(0,TAU),radius=this._range(600,760),q=this.queen;
     let x=finite(opts.x,clamp(q.x+Math.cos(a)*radius,25,WORLD-25)),y=finite(opts.y,clamp(q.y+Math.sin(a)*radius,25,WORLD-25));
     // At a world edge a clamped spawn can be too close; choose the opposite side instead.
     if(opts.x===undefined&&Math.hypot(x-q.x,y-q.y)<370){x=clamp(q.x-Math.cos(a)*650,25,WORLD-25);y=clamp(q.y-Math.sin(a)*650,25,WORLD-25);}
-    const tier=this.wave-1,hpTier=this.endless?Math.min(tier,this.stageInfo.waves-1):tier,stageFactor=this.stage===3?1.95:this.stage===2?1.55:1,hp=def.hp*(1+hpTier*.12+hpTier*hpTier*.006)*stageFactor*(1+this.endlessTier()*.005)*(opts.final||opts.boss&&this.endlessTier()>0?1.5:1);
-    const e={id:this._nextId++,type,name:def.name,x,y,px:x,py:y,hp,max:hp,speed:def.speed*Math.min(1.62,1+tier*.025)*(this.stage===2?1.06:1),r:def.r,boss:!!opts.boss,final:!!opts.final,armor:def.armor||0,hit:0,angle:Math.atan2(q.y-y,q.x-x),phase:this._range(0,TAU),timer:type==='hornet'?2:this._range(1.4,2.7),mode:'approach',chargeX:0,chargeY:0,color:def.color,behavior:def.behavior};
+    const tier=this.wave-1,hpTier=this.endless?Math.min(tier,this.stageInfo.waves-1):tier,stageFactor=this.stageInfo.healthFactor||(this.stage===3?1.95:this.stage===2?1.55:1),hp=def.hp*(1+hpTier*.12+hpTier*hpTier*.006)*stageFactor*(1+this.endlessTier()*.005)*(opts.final||opts.boss&&this.endlessTier()>0?1.5:1);
+    const e={id:this._nextId++,type,name:def.name,x,y,px:x,py:y,hp,max:hp,speed:def.speed*Math.min(1.62,1+tier*.025)*(this.stageInfo.speedFactor||(this.stage===2?1.06:1)),r:def.r,boss:!!opts.boss,final:!!opts.final,armor:def.armor||0,hit:0,angle:Math.atan2(q.y-y,q.x-x),phase:this._range(0,TAU),timer:type==='hornet'?2:this._range(1.4,2.7),mode:'approach',chargeX:0,chargeY:0,color:def.color,behavior:def.behavior};
     e.armorMax=type==='beetle'?hp*.65:0;e.armorHp=e.armorMax;e.gustClock=type==='hornet'?7+(e.id%4):0;e.gustWarning=0;e.frozen=0;
     this.enemies.push(e);return e;
   }
@@ -227,7 +246,7 @@ class Game{
     if(amount>=5)this._event('hit',e.x,e.y,{enemyType:e.type,color:e.color,radius:e.r});
     if(e.hp>0)return;
     if(this.character==='snowman'&&e.frozen>0&&this.specialTime>0){const heal=Math.min(2,Math.max(0,24-this.specialHealing));this.specialHealing+=heal;this.queen.hp=Math.min(this.queen.max,this.queen.hp+heal);}
-    e.hp=0;if(e.arenaBoss)this.arenaBossKills++;this.kills++;this._pity++;this._recentKills.push(this.time);
+    e.hp=0;if(e.arenaBoss)this.arenaBossKills++;if(e.hordeBoss)this.challengeBossKills++;this.kills++;this._pity++;this._recentKills.push(this.time);
     this._event('kill',e.x,e.y,{enemyType:e.type,boss:e.boss,color:e.color,radius:e.r,angle:e.angle,tiny:!!e.outbreak});
     this._drop('xp',e.x,e.y,ENEMIES[e.type].xp+(e.boss?Math.floor(this.wave/3):0));
     if(e.boss||(this.stage!==3&&(this._pity>=180||this._random()<.003))){this._drop('chest',e.x+15,e.y+5,1,{bossChest:this.stage===3&&e.boss});this._pity=0;}
@@ -291,7 +310,7 @@ class Game{
   _weapons(dt){
     const q=this.queen,w={...this.weapons},f={...this.fused};for(const id of Object.keys(FUSIONS))if(this.fusionConsumed(id)){f[id]=false;for(const key of FUSIONS[id].pair)w[key]=0;}for(const k of Object.keys(this._timers))this._timers[k]-=dt;
     if(this.superWeaponTime>0){this._superTimer-=dt;if(this._superTimer<=0){this._launchSwarm(9,this._swarmOrigin.x,this._swarmOrigin.y);this._superTimer=1.1;}}
-    if(w.jelly||f.royal)q.hp=Math.min(q.max,q.hp+(f.royal?2.6:w.jelly*.38)*dt*(this.stage===3?.3:1));
+    if(w.jelly||f.royal)q.hp=Math.min(q.max,q.hp+(f.royal?2.6:w.jelly*.38)*dt*(this.limitedRecovery()?.3:1));
     if((w.guard||f.royal)&&this._timers.guard<=0){
       const target=this._nearest(q,900);if(target){const count=f.royal?5:1+Math.floor(w.guard/2);for(let i=0;i<count;i++)this._shotAt(target,f.royal?66:16+w.guard*8,f.royal,(i-(count-1)/2)*.11);this._timers.guard=f.royal?.72:Math.max(.85,2-w.guard*.22);}
     }
@@ -307,7 +326,7 @@ class Game{
   }
   _ultimateWeapons(dt){
     const q=this.queen;
-    if(this.ultimates.tempest){q.hp=Math.min(q.max,q.hp+3.3*dt*(this.stage===3?.3:1));if(this._timers.tempest<=0){const target=this._nearest(q,1100);if(target){const angle=this._aimAngle(target);for(let i=-3;i<=3;i++){const a=angle+i*.14;this._addShot({type:'tempest',x:q.x,y:q.y,vx:Math.cos(a)*640,vy:Math.sin(a)*640,angle:a,life:2.5,damage:175*this.guardDamageMultiplier(),pierce:6,chain:4,homing:true,targetId:target.id,r:7,color:'#b9edff'});}this._timers.tempest=1.1;}}}
+    if(this.ultimates.tempest){q.hp=Math.min(q.max,q.hp+3.3*dt*(this.limitedRecovery()?.3:1));if(this._timers.tempest<=0){const target=this._nearest(q,1100);if(target){const angle=this._aimAngle(target);for(let i=-3;i<=3;i++){const a=angle+i*.14;this._addShot({type:'tempest',x:q.x,y:q.y,vx:Math.cos(a)*640,vy:Math.sin(a)*640,angle:a,life:2.5,damage:175*this.guardDamageMultiplier(),pierce:6,chain:4,homing:true,targetId:target.id,r:7,color:'#b9edff'});}this._timers.tempest=1.1;}}}
     if(this.ultimates.cataclysm){
       if(this._timers.cataclysm<=0){const target=this._nearest(q,950);if(target){const x=target.x,y=target.y;for(const e of [...this._targets()])if(e.hp>0&&dist2(e,{x,y})<(170+e.r)**2)this._damage(e,220);this._zone(x,y,170,4,80,'cataclysm',.36);this._event('burst',x,y,{radius:170,color:'#dfb2fa'});if(this.character==='snowman')this._snowballs(target,5);this._timers.cataclysm=1.6;}}
       if(this._timers.nova<=0){for(const e of [...this._targets()])if(e.hp>0&&dist2(e,q)<(240+e.r)**2)this._damage(e,245);this._event('burst',q.x,q.y,{radius:240,color:'#dfb2fa'});this._timers.nova=3.3;}
@@ -338,7 +357,7 @@ class Game{
     if(this.character==='queen'&&this.permanent.command){this._commandTimer=(this._commandTimer||0)-dt;if(this._commandTimer<=0){const target=this._nearest(q,800);if(target){target.markTime=4;this._event('command',target.x,target.y,{radius:45,color:'#ffdc83'});}this._commandTimer=12;}}
   }
   _chainLightning(origin,first,count,damage,alreadyHit){const used=new Set(alreadyHit||[]);let target=first,from=origin;for(let i=0;i<count&&target;i++){if(target.hp<=0||used.has(target.id))break;used.add(target.id);this._event('lightning',from.x,from.y,{endX:target.x,endY:target.y,color:'#b6edf1',radius:7});this._damage(target,damage*(1-i*.09));from=target;target=this._nearest(from,210,used);}return used;}
-  _zone(x,y,r,life,damage,kind,slow=1){if(this.zones.length>=MAX_ZONES)this.zones.shift();this.zones.push({id:this._nextId++,x,y,r,life,max:life,damage,kind,type:kind,slow:slow<1,slowFactor:slow,color:kind==='bloom'?'#dcb164':'#a47946'});}
+  _zone(x,y,r,life,damage,kind,slow=1){if(this.zones.length>=MAX_ZONES)this.zones.shift();if(kind==='propolis'||kind==='bloom')r*=1.15;this.zones.push({id:this._nextId++,x,y,r,life,max:life,damage,kind,type:kind,slow:slow<1,slowFactor:slow,color:kind==='bloom'?'#dcb164':'#a47946'});}
   _burst(x,y,r,damage,sticky=false,armorPower=1){this._event('burst',x,y,{radius:r,color:sticky?'#dcb164':'#f2d590'});for(const e of [...this._targets()])if(e.hp>0&&dist2(e,{x,y})<(r+e.r)**2)this._damage(e,damage,armorPower);this._zone(x,y,r,sticky?3.8:.3,sticky?29:0,sticky?'bloom':'pulse',sticky?.43:1);}
   _enemies(dt){
     const q=this.queen;
@@ -347,7 +366,7 @@ class Game{
       if(e.frozen>0){e.frozen=Math.max(0,e.frozen-dt);continue;}e.timer-=dt;
       if(e.boss){e.gustClock-=dt;if(e.gustWarning>0){e.gustWarning-=dt;if(e.gustWarning<=0){const dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,dot=(dx/d)*e.gustX+(dy/d)*e.gustY;if(d<650&&dot>Math.cos(.8)){q.vx+=e.gustX*300;q.vy+=e.gustY*300;q.x=clamp(q.x+e.gustX*70,22,WORLD-22);q.y=clamp(q.y+e.gustY*70,22,WORLD-22);this.specialCharge=Math.max(0,this.specialCharge-.25);}this._event('gust',e.x,e.y,{angle:Math.atan2(e.gustY,e.gustX),radius:260,color:'#d9ebc0'});e.gustClock=11+(e.id%4);}}else if(e.gustClock<=0&&dist2(e,q)<650**2){const d=Math.hypot(q.x-e.x,q.y-e.y)||1;e.gustX=(q.x-e.x)/d;e.gustY=(q.y-e.y)/d;e.gustWarning=1.4;this._event('gustwarning',e.x,e.y,{angle:Math.atan2(e.gustY,e.gustX)});}}
       let dx=q.x-e.x,dy=q.y-e.y,d=Math.hypot(dx,dy)||1,ux=dx/d,uy=dy/d,speed=e.speed;if(e.gustWarning>0)speed*=.1;if(e.blizzardMarked&&e.boss&&this.specialTime>0)speed*=.65;
-      e.angle=Math.atan2(dy,dx);if(this.pressureTime>0&&!e.outbreak)speed*=1.3;if(e.arenaBoss){let slow=1;for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)slow=Math.min(slow,z.slowFactor);speed*=Math.max(.72,slow);}else for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)speed*=z.slowFactor;
+      e.angle=Math.atan2(dy,dx);if(this.pressureTime>0&&!e.outbreak)speed*=1.3;if(e.arenaBoss||this.stageInfo.horde){let slow=1;for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)slow=Math.min(slow,z.slowFactor);speed*=Math.max(e.arenaBoss?.72:e.hordeBoss?.65:.32,slow);}else for(const z of this.zones)if(z.slow&&dist2(e,z)<(z.r+e.r*.4)**2)speed*=z.slowFactor;
       if(e.behavior==='weave'){const weave=Math.sin(this.time*3.2+e.phase)*.85;dx=ux-uy*weave;dy=uy+ux*weave;}
       else if(e.behavior==='swarm'){const flank=Math.sin(this.time*1.8+e.phase)*.65;dx=ux-uy*flank;dy=uy+ux*flank;}
       else if(e.behavior==='skitter'){const jitter=Math.sin(this.time*9+e.phase)*.35;dx=ux-uy*jitter;dy=uy+ux*jitter;}
@@ -362,10 +381,10 @@ class Game{
         else{dx=ux;dy=uy;if(e.timer<=0&&d<700){e.mode='telegraph';e.timer=e.boss?.85:.65;e.chargeX=ux;e.chargeY=uy;if(e.boss){for(let i=-2;i<=2;i++)this._enemyShot(e,e.angle+i*.22);if(this.enemies.length<190)for(let i=0;i<(e.bossRole===2?6:3);i++)this._spawnEnemy('gnat',{x:e.x+this._range(-30,30),y:e.y+this._range(-30,30)});}}}
       }else{dx=ux;dy=uy;}
       const norm=Math.hypot(dx,dy)||1;e.x=clamp(e.x+dx/norm*speed*dt,8,WORLD-8);e.y=clamp(e.y+dy/norm*speed*dt,8,WORLD-8);
-      if(q.inv<=0&&segmentDistance2(q.x,q.y,e.px,e.py,e.x,e.y)<(e.r+13)**2){q.hp-=(e.outbreak?2:e.arenaBoss?64:e.boss?24:e.type==='gnat'||e.type==='varroa'?6:10)*this.endlessDamage();if(e.type==='varroa')q.slowTime=.65;q.inv=.64;this._event('hit',q.x,q.y,{color:'#f3cf85',radius:18,player:true});}
+      if(q.inv<=0&&segmentDistance2(q.x,q.y,e.px,e.py,e.x,e.y)<(e.r+13)**2){q.hp-=(e.outbreak?2:e.arenaBoss?64:e.boss?24:e.type==='gnat'||e.type==='varroa'?6:10)*this.challengeDamage();if(e.type==='varroa')q.slowTime=.65;q.inv=.64;this._event('hit',q.x,q.y,{color:'#f3cf85',radius:18,player:true});}
     }
   }
-  _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*(e.arenaBoss?250:205),vy:Math.sin(a)*(e.arenaBoss?250:205),angle:a,life:4.2,damage:(e.arenaBoss?38:e.boss?14:9)*this.endlessDamage(),pierce:1,r:6,color:'#ff4545'});}
+  _enemyShot(e,a){this._addShot({type:'sap',faction:'enemy',x:e.x,y:e.y,vx:Math.cos(a)*(e.arenaBoss?250:205),vy:Math.sin(a)*(e.arenaBoss?250:205),angle:a,life:4.2,damage:(e.arenaBoss?38:e.boss?14:9)*this.challengeDamage(),pierce:1,r:6,color:'#ff4545'});}
   _projectiles(dt){
     for(const s of this.shots){
       if(s.life<=0)continue;s.flightPhase=s.flightPhase??s.id*.73;s.baseAngle=s.baseAngle??Math.atan2(s.vy,s.vx);s.px=s.x;s.py=s.y;s.life-=dt;
@@ -394,7 +413,7 @@ class Game{
     }
     this.drops=this.drops.filter(d=>!d.taken);if(chest)this.collectChest(chest);
   }
-  _eligible(){return Object.keys(WEAPONS).filter(k=>this.weapons[k]<5&&!Object.keys(FUSIONS).some(f=>this.fused[f]&&FUSIONS[f].pair.includes(k)));}
+  _eligible(){const room=this.weaponLoadout().length<WEAPON_LIMIT;return Object.keys(WEAPONS).filter(k=>(this.weapons[k]>0||WEAPONS[k].utility||room)&&this.weapons[k]<5&&!Object.keys(FUSIONS).some(f=>this.fused[f]&&FUSIONS[f].pair.includes(k)));}
   _shuffle(array){for(let i=array.length-1;i>0;i--){const j=Math.floor(this._random()*(i+1));[array[i],array[j]]=[array[j],array[i]];}return array;}
   _upgradeOption(id){const currentRank=this.weapons[id],rank=currentRank+1,info=weaponInfo(id,this.character);return {id,name:info.name,currentRank,rank,description:`${rank===5?'Reach maximum rank.':`Gain rank ${rank}.`} ${info.description}`,color:info.color};}
   refreshUpgradeOptions(){
@@ -402,11 +421,11 @@ class Game{
     const eligible=this._eligible(),valid=new Set(eligible),ids=[...new Set(this.options.filter(o=>WEAPONS[o.id]&&valid.has(o.id)).map(o=>o.id))].slice(0,3);
     if(ids.length<Math.min(3,eligible.length))for(const id of this._shuffle(eligible.filter(id=>!ids.includes(id)))){if(ids.length>=3)break;ids.push(id);}
     this.options=ids.map(id=>this._upgradeOption(id));
-    if(this.options.length<3)this.options.push({id:'reserves',name:'Royal Reserves',description:this.stage===3?'Gain up to 3 maximum health (arena growth cap: 60) and recover 10 health.':'Gain 12 maximum health and recover 35 health.',color:'#ddb1b7'});
-    if(this.options.length<3)this.options.push({id:'recovery',name:'Meadow Recovery',description:this.stage===3?'Recover 12% of your maximum health.':'Recover half your maximum health.',color:'#a9bf81'});
+    if(this.options.length<3)this.options.push({id:'reserves',name:'Royal Reserves',description:this.limitedRecovery()?`Gain up to 3 maximum health (run growth cap: ${this.stage===5?40:60}) and recover 10 health.`:'Gain 12 maximum health and recover 35 health.',color:'#ddb1b7'});
+    if(this.options.length<3)this.options.push({id:'recovery',name:'Meadow Recovery',description:this.limitedRecovery()?'Recover 12% of your maximum health.':'Recover half your maximum health.',color:'#a9bf81'});
     return this.options;
   }
-  _recoveryValues(){return this.stage===3?{maxGain:Math.max(0,Math.min(3,this._arenaHealthLimit-this.queen.max)),reservesHeal:10,recoveryHeal:this.queen.max*.12}:{maxGain:12,reservesHeal:35,recoveryHeal:this.queen.max*.5};}
+  _recoveryValues(){return this.limitedRecovery()?{maxGain:Math.max(0,Math.min(3,this._arenaHealthLimit-this.queen.max)),reservesHeal:10,recoveryHeal:this.queen.max*.12}:{maxGain:12,reservesHeal:35,recoveryHeal:this.queen.max*.5};}
   _applyRecovery(id){const q=this.queen,v=this._recoveryValues();if(id==='reserves'){q.max+=v.maxGain;q.hp=Math.min(q.max,q.hp+v.reservesHeal);return true;}if(id==='recovery'){q.hp=Math.min(q.max,q.hp+v.recoveryHeal);return true;}return false;}
   _autoRecoveryLevel(){
     if(!this.autoRecovery||this.state!=='levelup'||!this.options.length||this.options.some(o=>!['reserves','recovery'].includes(o.id)))return false;
@@ -440,22 +459,22 @@ class Game{
     if(this.state!=='playing')return false;
     if(drop){const index=this.drops.indexOf(drop);if(index>=0)this.drops.splice(index,1);}
     const ultimate=drop?.bossChest?this.readyUltimates():[];
-    const fusion=Object.keys(FUSIONS).filter(k=>!this.fused[k]&&FUSIONS[k].pair.every(p=>this.weapons[p]>=5));
+    const fusion=this.readyFusions();
     if(ultimate.length){const id=ultimate[Math.floor(this._random()*ultimate.length)],def=ULTIMATES[id];this.pendingReward={id,name:def.name,description:def.description.replace('Swarm Shield',fusionInfo('shield',this.character).name),ultimate:true,color:def.color};}
     else if(fusion.length){const id=fusion[Math.floor(this._random()*fusion.length)],def=fusionInfo(id,this.character);this.pendingReward={id,name:def.name,description:def.description,fusion:true,color:def.color};}
-    else{const eligible=this._eligible(),owned=eligible.filter(k=>this.weapons[k]>0),pool=owned.length?owned:eligible;if(pool.length){const id=pool[Math.floor(this._random()*pool.length)];this.pendingReward={id,name:weaponInfo(id,this.character).name,description:`Bonus rank ${this.weapons[id]+1}/5 and ${this.stage===3?14:20} health.`,fusion:false,color:WEAPONS[id].color};}else this.pendingReward={id:'cache',name:'Royal Cache',description:this.stage===3?'Recover 6 health. Arena caches do not increase maximum health.':'Gain 15 maximum health and recover 50 health.',color:'#f1d091'};}
+    else{const eligible=this._eligible(),owned=eligible.filter(k=>this.weapons[k]>0),pool=owned.length?owned:eligible;if(pool.length){const id=pool[Math.floor(this._random()*pool.length)];this.pendingReward={id,name:weaponInfo(id,this.character).name,description:`Bonus rank ${this.weapons[id]+1}/5 and ${this.limitedRecovery()?14:20} health.`,fusion:false,color:WEAPONS[id].color};}else this.pendingReward={id:'cache',name:'Royal Cache',description:this.limitedRecovery()?'Recover 6 health. Challenge caches do not increase maximum health.':'Gain 15 maximum health and recover 50 health.',color:'#f1d091'};}
     this.state='chest';this._event('chest',drop?drop.x:this.queen.x,drop?drop.y:this.queen.y,{reward:this.pendingReward.name,fusion:!!this.pendingReward.fusion});
     if(this.autoRecovery&&this.pendingReward.id==='cache')this.claimReward();return true;
   }
   claimReward(){
     if(this.state!=='chest'||!this.pendingReward)return false;const reward=this.pendingReward;
     if(reward.ultimate){if(!this.readyUltimates().includes(reward.id))return false;this.ultimates[reward.id]=true;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.stage===3?30:60));this._event('ultimate',this.queen.x,this.queen.y,{name:reward.name,color:reward.color});}
-    else if(reward.fusion){this.fused[reward.id]=true;this.queen.hp=Math.min(this.queen.max,this.queen.hp+30);}
-    else if(reward.id==='cache'){this.queen.max+=this.stage===3?0:15;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.stage===3?6:50));if(this.autoRecovery)this._event('autoRecovery',this.queen.x,this.queen.y,{reward:'cache',source:'chest'});}
-    else{if(!this._applyWeapon(reward.id))return false;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.stage===3?14:20));}
+    else if(reward.fusion){if(!this.readyFusions().includes(reward.id))return false;this.fused[reward.id]=true;this.queen.hp=Math.min(this.queen.max,this.queen.hp+30);this._event('fusion',this.queen.x,this.queen.y,{id:reward.id,name:reward.name,color:reward.color});}
+    else if(reward.id==='cache'){this.queen.max+=this.limitedRecovery()?0:15;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.limitedRecovery()?6:50));if(this.autoRecovery)this._event('autoRecovery',this.queen.x,this.queen.y,{reward:'cache',source:'chest'});}
+    else{if(!this._applyWeapon(reward.id))return false;this.queen.hp=Math.min(this.queen.max,this.queen.hp+(this.limitedRecovery()?14:20));}
     this.pendingReward=null;this.state='playing';this._checkLevel();return true;
   }
   continueEndless(){if(this.state!=='won')return false;this.endless=true;this.state='playing';this.queen.hp=Math.max(this.queen.hp,this.queen.max*.6);return true;}
 }
-return {Game,WEAPONS,FUSIONS,ULTIMATES,ENEMIES,STAGES,CHARACTERS,weaponInfo,fusionInfo,WORLD,segmentDistance2};
+return {Game,WEAPONS,FUSIONS,ULTIMATES,ENEMIES,STAGES,CHARACTERS,weaponInfo,fusionInfo,WORLD,WEAPON_LIMIT,segmentDistance2};
 });

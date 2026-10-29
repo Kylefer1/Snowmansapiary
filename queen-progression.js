@@ -14,7 +14,7 @@ const UPGRADES={
 };
 const integer=(v,max=100000000)=>Number.isFinite(v)?Math.max(0,Math.min(max,Math.floor(v))):0;
 function clean(raw){raw=raw&&typeof raw==='object'?raw:{};const result={beeswax:integer(raw.beeswax),earned:integer(raw.earned),upgrades:{},equipped:integer(raw.equipped,4),run:raw.run&&typeof raw.run==='object'?{id:String(raw.run.id||'').slice(0,80),credited:integer(raw.run.credited)}:null};for(const [id,def]of Object.entries(UPGRADES))result.upgrades[id]=integer(raw.upgrades?.[id],def.max);result.equipped=Math.min(result.equipped,result.upgrades.explosive);return result;}
-function earned(game){const base=Math.floor(Math.max(0,game.time)/20)+Math.floor(Math.max(0,game.kills)/15)+Math.floor(Math.max(0,game.wave-1)/5)*3;return game.stage===3?base*2+Math.max(0,Math.floor(game.arenaBossKills||0))*3+(game.campaignComplete?100:0):base;}
+function earned(game){const base=Math.floor(Math.max(0,game.time)/20)+Math.floor(Math.max(0,game.kills)/15)+Math.floor(Math.max(0,game.wave-1)/5)*3;if(game.stage===4||game.stage===5)return base*(game.stage===5?3:2)+Math.max(0,Math.floor(game.challengeBossKills||0))*(game.stage===5?3:2)+(game.campaignComplete?(game.stage===5?300:180):0);return game.stage===3?base*2+Math.max(0,Math.floor(game.arenaBossKills||0))*3+(game.campaignComplete?100:0):base;}
 class Store{
  constructor(storage){this.storage=storage;this.persisted=true;let raw;try{raw=JSON.parse(storage?.getItem(KEY)||'null');}catch(_){}this.data=clean(raw);}
  save(){try{if(!this.storage)throw Error('unavailable');this.storage.setItem(KEY,JSON.stringify(this.data));this.persisted=true;}catch(_){this.persisted=false;}return this.persisted;}

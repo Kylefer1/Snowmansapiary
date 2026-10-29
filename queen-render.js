@@ -47,7 +47,7 @@ class Renderer{
  }
  terrain(stage){
   const tile=document.createElement('canvas');tile.width=512;tile.height=512;const c=tile.getContext('2d');let seed=83451;const rand=()=>{seed=(seed*1664525+1013904223)>>>0;return seed/4294967296};
-  c.fillStyle=stage===3?'#302432':stage===2?'#272e30':'#283b27';c.fillRect(0,0,512,512);
+  c.fillStyle=stage===5?'#27282b':stage===4?'#33352b':stage===3?'#302432':stage===2?'#272e30':'#283b27';c.fillRect(0,0,512,512);
   for(let i=0;i<3400;i++){const x=rand()*512,y=rand()*512;c.fillStyle=stage>=2?`rgba(122,112,122,${rand()*.11})`:`rgba(170,165,112,${rand()*.10})`;c.fillRect(x,y,rand()*3+1,rand()*2+1)}
   for(let i=0;i<100;i++){const x=rand()*512,y=rand()*512;c.strokeStyle=stage>=2?'#414746':'#424e35';c.lineWidth=.7;c.beginPath();c.moveTo(x-3,y+7);c.quadraticCurveTo(x-5,y,x-8,y-6);c.moveTo(x,y+6);c.quadraticCurveTo(x+4,y-3,x+2,y-12);c.moveTo(x+2,y+6);c.quadraticCurveTo(x+10,y+1,x+10,y-3);c.stroke();}
   this.pattern=this.ctx.createPattern(tile,'repeat');this.stage=stage;

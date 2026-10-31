@@ -1,3 +1,4 @@
+/* Created by Kyle Fer | Snowman's Apiary | snowmansapiary.com */
 /* Apiary Defense — original artwork, controls and canvas presentation. */
 'use strict';
 (()=>{

@@ -1,3 +1,4 @@
+/* Created by Kyle Fer | Snowman's Apiary | snowmansapiary.com */
 'use strict';
 (()=>{
 const $=s=>document.querySelector(s),canvas=$('#arena'),overlay=$('#overlay'),dialog=$('#dialog');

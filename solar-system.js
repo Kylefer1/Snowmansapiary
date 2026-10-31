@@ -1,3 +1,4 @@
+/* Created by Kyle Fer | Snowman's Apiary | snowmansapiary.com */
 /* Multi-scale SVG explorer. Computed ephemerides and illustrative atlases keep
    distinct coordinate systems, units and labels. Ordinary wheel scroll is free. */
 (()=>{
